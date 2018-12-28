@@ -1,0 +1,69 @@
+name: zippy
+dependencies:
+  # newest version
+  - python=3.6
+
+  # giant tools that we all need
+  - numpy
+  - scikit-learn
+  # data frame
+  - pandas
+
+  # for stats
+  - scipy
+  - statsmodels
+
+  # jupyter
+  - jupyter
+  - jupyterlab
+
+  # data fetch
+  - requests
+
+  # docs
+  - sphinx
+
+  # deep learning
+  - pytorch
+  - keras
+  - tensorflow
+
+  # for maths?
+  - sympy
+
+  # nlp stuffs
+  - nltk
+  - spacy
+  - gensim
+  - textblob
+  - textacy
+
+  # network graphs
+  - networkx
+
+  # plots
+  - seaborn
+  - bokeh.gitkeep
+  - matplotlib
+  - wordcloud
+
+  - alabaster
+
+  - watermark
+
+  - pip:
+      - steppy
+      - kaggle
+      - black
+      - click
+      - pylint
+      - flake8
+      - pycodestyle
+      - pydocstyle
+      - pep8-naming
+      - pytest
+      - isort
+      - pytest-cov
+
+channels:
+  - conda-forge

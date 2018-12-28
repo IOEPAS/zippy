@@ -1,0 +1,15 @@
+[tool.black]
+line-length = 88
+py36 = true
+include = '\.pyi?$'
+exclude = '''
+    node_modules
+  | venv
+  | \**/migrations/
+  | assets
+  | \.pytest_cache
+  | \.mypy_cache
+  | htmlcov
+  | cov_html
+  | requirements
+'''
