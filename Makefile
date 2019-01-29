@@ -37,8 +37,8 @@ NO_COLOR=\x1b[m
 .PHONY: data
 ## Data related operations
 data:
-	@echo -e "${COLOR}make data:push FILENAME=<DATA_FILENAME>${NO_COLOR}\tTo push specific dataset to s3."
-	@echo -e "${COLOR}make data:pull FILENAME=<DATA_FILENAME>${NO_COLOR}\tTo pull specific dataset from s3."
+	@echo -e "${COLOR}make data:push FILENAME=<DATA_FILENAME>${NO_COLOR}\tTo push specific dataset to Azure."
+	@echo -e "${COLOR}make data:pull FILENAME=<DATA_FILENAME>${NO_COLOR}\tTo pull specific dataset from Azure."
 	@echo -e "${COLOR}make <DATA_FILENAME>${NO_COLOR}\t\t\tTo build dataset locally."
 	@echo -e "\nFollowing files are available:"
 	@echo -e "$$(egrep '^(data/.+)\:' ${MAKEFILE_LIST} | sed -e 's/:.*\s*/:/' -e 's/^\(.\+\):\(.*\)/\t\${COLOR}\1\${NO_COLOR}\2/')"
@@ -49,7 +49,8 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make data:push FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pushes the ${FILENAME} to the s3.)
+	$(info TODO command. Pushes the ${FILENAME} to the Azure.)
+	$(PYTHON) scripts/utils.py push $(FILENAME)
 endif
 
 .PHONY: data\:pull
@@ -58,7 +59,8 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make data:pull FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pulls the ${FILENAME} from the s3.)
+	$(info TODO command. Pulls the ${FILENAME} from the Azure.)
+	$(PYTHON) scripts/utils.py pull $(FILENAME)
 endif
 
 # Data pipelines
@@ -69,8 +71,8 @@ data/raw/emails.csv:
 .PHONY: models
 ## Models related operations
 models:
-	@echo -e "${COLOR}make models:push FILENAME=<MODEL_FILENAME>${NO_COLOR}\tTo push specific model to s3."
-	@echo -e "${COLOR}make models:pull FILENAME=<MODEL_FILENAME>${NO_COLOR}\tTo pull specific model from s3."
+	@echo -e "${COLOR}make models:push FILENAME=<MODEL_FILENAME>${NO_COLOR}\tTo push specific model to Azure."
+	@echo -e "${COLOR}make models:pull FILENAME=<MODEL_FILENAME>${NO_COLOR}\tTo pull specific model from Azure."
 	@echo -e "${COLOR}make <MODEL_FILENAME>${NO_COLOR}\t\t\tTo train model locally."
 	@echo -e "\nFollowing files are available:"
 	@echo -e "$$(egrep '^(output/models/.+)\:' ${MAKEFILE_LIST} | sed -e 's/:.*\s*/:/' -e 's/^\(.\+\):\(.*\)/\t\\x1b[36m\1\\x1b[m\2/')"
@@ -81,7 +83,9 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make models:push FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pushes the ${FILENAME} to the s3.)
+	$(info TODO command. Pushes the ${FILENAME} to the Azure.)
+	$(PYTHON) scripts/utils.py push $(FILENAME)
+	
 endif
 
 .PHONY: models\:pull
@@ -90,7 +94,8 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make models:pull FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pulls the ${FILENAME} from the s3.)
+	$(info TODO command. Pulls the ${FILENAME} from the Azure.)
+	$(PYTHON) scripts/utils.py pull $(FILENAME)
 endif
 
 # model pipelines
