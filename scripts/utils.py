@@ -13,8 +13,6 @@ block_blob_service = BlockBlobService(account_name=config['AZURE_STORAGE_NAME'],
 
 container_name = config['CONTAINER_NAME']
 
-file_path = os.getcwd() + '/data/'
-
 def copy_example(topic: str):
     """Creates a copy of the ``example.ipynb`` file."""
 
@@ -27,15 +25,22 @@ def copy_example(topic: str):
     else:
         print(f"File {file_name} already exists. Try with another name.")
 
-def push_blob(new_blob_name):
+def push_blob(file_path):
     """ Write file to Azure blob storage. """
-    block_blob_service.create_blob_from_path(container_name, new_blob_name, file_path + new_blob_name)
-    print('{0} written to container {1}.'.format(new_blob_name, container_name))
+    blob_name = file_path.split('/')
+    blob_name = '-'.join(blob_name)
+    block_blob_service.create_blob_from_path(container_name, blob_name, file_path)
+    print('{0} written to container {1}.'.format(blob_name, container_name))
 
-def pull_blob(blob_name):
+def pull_blob(file_path):
     """ Read file from Azure blob storage. """
-    block_blob_service.get_blob_to_path(container_name, blob_name, file_path + blob_name)
-    print('{0} downloaded to {1}.'.format(blob_name, file_path))
+    blob_name = file_path.split('/')
+    blob_name = '-'.join(blob_name)
+    if not Path(file_path).exists():
+        block_blob_service.get_blob_to_path(container_name, blob_name, file_path)
+        print('{0} downloaded to {1}.'.format(blob_name, file_path))
+    else:
+        print(f"File {file_path} already exists.")  
 
 
 if __name__ == "__main__":
@@ -44,7 +49,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "create_nb":
             copy_example(sys.argv[2])
-        if sys.argv[1] == "pull":
+        elif sys.argv[1] == "pull":
             pull_blob(sys.argv[2])
-        if sys.argv[1] == "push":
+        elif sys.argv[1] == "push":
             push_blob(sys.argv[2])

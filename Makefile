@@ -49,7 +49,6 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make data:push FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pushes the ${FILENAME} to the Azure.)
 	$(PYTHON) scripts/utils.py push $(FILENAME)
 endif
 
@@ -59,7 +58,6 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make data:pull FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pulls the ${FILENAME} from the Azure.)
 	$(PYTHON) scripts/utils.py pull $(FILENAME)
 endif
 
@@ -83,7 +81,6 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make models:push FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pushes the ${FILENAME} to the Azure.)
 	$(PYTHON) scripts/utils.py push $(FILENAME)
 	
 endif
@@ -94,7 +91,6 @@ ifndef FILENAME
 	$(info Missing FILENAME argument)
 	$(error Usage: "make models:pull FILENAME=path/to/the/file")
 else
-	$(info TODO command. Pulls the ${FILENAME} from the Azure.)
 	$(PYTHON) scripts/utils.py pull $(FILENAME)
 endif
 
