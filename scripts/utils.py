@@ -1,23 +1,29 @@
 """Utilities to make our work easier."""
-import os, datetime
+import datetime
 import shutil
-import yaml
+
 from pathlib import Path
+
+import yaml
+
 from azure.storage.blob import BlockBlobService
 
 # Reading the environment variables
-stream = open('.env.yml', 'r')
-config = yaml.load(stream)
+STREAM = open(".env.yml", "r")
+CONFIG = yaml.load(STREAM)
 
-block_blob_service = BlockBlobService(account_name=config['AZURE_STORAGE_NAME'], account_key=config['AZURE_STORAGE_KEY'])
+BLOCK_BLOB_SERVICE = BlockBlobService(
+    account_name=CONFIG["AZURE_STORAGE_NAME"], account_key=CONFIG["AZURE_STORAGE_KEY"]
+)
 
-container_name = config['CONTAINER_NAME']
+CONTAINER_NAME = CONFIG["CONTAINER_NAME"]
+
 
 def copy_example(topic: str):
     """Creates a copy of the ``example.ipynb`` file."""
 
     date = datetime.date.today().strftime("%Y%m%d")
-    username = config["USERNAME"]
+    username = CONFIG["USERNAME"]
     file_name = f"notebooks/{date}-{username}-{topic}.ipynb"
     if not Path(file_name).exists():
         shutil.copy("notebooks/example.ipynb", file_name)
@@ -25,22 +31,28 @@ def copy_example(topic: str):
     else:
         print(f"File {file_name} already exists. Try with another name.")
 
+
 def push_blob(file_path):
     """ Write file to Azure blob storage. """
-    blob_name = file_path.split('/')
-    blob_name = '-'.join(blob_name)
-    block_blob_service.create_blob_from_path(container_name, blob_name, file_path)
-    print('{0} written to container {1}.'.format(blob_name, container_name))
+    blob_name = file_path.split("/")
+    blob_name = "-".join(blob_name)
+    file_exists = BLOCK_BLOB_SERVICE.exists(CONTAINER_NAME, blob_name)
+    if file_exists:
+        print("File already exists in Azure storage. Please try with another name.")
+    else:
+        BLOCK_BLOB_SERVICE.create_blob_from_path(CONTAINER_NAME, blob_name, file_path)
+        print("{0} written to container {1}.".format(blob_name, CONTAINER_NAME))
+
 
 def pull_blob(file_path):
     """ Read file from Azure blob storage. """
-    blob_name = file_path.split('/')
-    blob_name = '-'.join(blob_name)
+    blob_name = file_path.split("/")
+    blob_name = "-".join(blob_name)
     if not Path(file_path).exists():
-        block_blob_service.get_blob_to_path(container_name, blob_name, file_path)
-        print('{0} downloaded to {1}.'.format(blob_name, file_path))
+        BLOCK_BLOB_SERVICE.get_blob_to_path(CONTAINER_NAME, blob_name, file_path)
+        print("{0} downloaded to {1}.".format(blob_name, file_path))
     else:
-        print(f"File {file_path} already exists.")  
+        print(f"File {file_path} already exists.")
 
 
 if __name__ == "__main__":
