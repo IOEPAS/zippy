@@ -35,7 +35,7 @@ def copy_example(topic: str):
 def push_blob(file_path):
     """ Write file to Azure blob storage. """
     blob_name = file_path.split("/")
-    blob_name = "-".join(blob_name)
+    blob_name = "_".join(blob_name)
     file_exists = BLOCK_BLOB_SERVICE.exists(CONTAINER_NAME, blob_name)
     if file_exists:
         print("File already exists in Azure storage. Please try with another name.")
@@ -47,7 +47,7 @@ def push_blob(file_path):
 def pull_blob(file_path):
     """ Read file from Azure blob storage. """
     blob_name = file_path.split("/")
-    blob_name = "-".join(blob_name)
+    blob_name = "_".join(blob_name)
     if not Path(file_path).exists():
         BLOCK_BLOB_SERVICE.get_blob_to_path(CONTAINER_NAME, blob_name, file_path)
         print("{0} downloaded to {1}.".format(blob_name, file_path))
