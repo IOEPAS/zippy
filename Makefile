@@ -135,7 +135,7 @@ run:
 .PHONY: docs
 ## Make docs
 docs:
-	cd docs && make html
+	cd docs && make html SPHINXOPTS=-W
 
 #################################################################################
 # PROJECT RULES                                                                 #

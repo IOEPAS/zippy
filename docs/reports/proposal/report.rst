@@ -1,4 +1,6 @@
-**Table Of Contents**
+***************
+Proposal Report
+***************
 
 CHAPTER 1: INTRODUCTION
 =======================
