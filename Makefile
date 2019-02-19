@@ -82,7 +82,6 @@ ifndef FILENAME
 	$(error Usage: "make models:push FILENAME=path/to/the/file")
 else
 	$(PYTHON) scripts/utils.py push $(FILENAME)
-	
 endif
 
 .PHONY: models\:pull
@@ -135,7 +134,10 @@ run:
 .PHONY: docs
 ## Make docs
 docs:
-	cd docs && make html
+	# Sphinx searches in _static dir for static files
+	# Create one if it doesnot exist.
+	mkdir -p docs/_static
+	cd docs && make html SPHINXOPTS=-W
 
 #################################################################################
 # PROJECT RULES                                                                 #
