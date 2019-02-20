@@ -14,7 +14,7 @@ networkx==2.2
 nltk==3.4
 numpy==1.16.1
 pandas==0.24.0
-pep8-naming==0.8.0
+pep8-naming==0.8.2
 pycodestyle==2.5.0
 pydocstyle==3.0.0
 pydot-ng==2.0.0
