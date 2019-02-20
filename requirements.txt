@@ -7,7 +7,7 @@ ipython==7.3.0
 jedi==0.13.2
 jupyter==1.0.0
 jupyterlab==0.35.4
-kaggle==1.5.2
+kaggle==1.5.3
 Keras==2.2.4
 mccabe==0.6.1
 networkx==2.2
