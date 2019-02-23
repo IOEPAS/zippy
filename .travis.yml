@@ -5,8 +5,11 @@ before_install:
     - python -m pip install --upgrade pip
 install:
     - pip install --progress-bar off -r requirements.txt
+    - pip install codecov
 script:
     - make lint
     - make docs
-    - make test
+    - make test-cov
+after_success:
+    - codecov --token=$CODECOV_TOKEN
 cache: pip

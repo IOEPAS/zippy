@@ -146,6 +146,11 @@ docs:
 test:
 	$(PYTHON) -m pytest $(TEST_ARGS)
 
+.PHONY: test-cov
+## Run tests with coverage
+test-cov:
+	$(PYTHON) -m pytest --cov=./ $(TEST_ARGS)
+
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################
