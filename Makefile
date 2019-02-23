@@ -27,6 +27,8 @@ MODELS_DIR="output/models"
 
 FILENAME=
 
+TEST_ARGS=
+
 COLOR=\x1b[36m
 NO_COLOR=\x1b[m
 
@@ -138,6 +140,21 @@ docs:
 	# Create one if it doesnot exist.
 	mkdir -p docs/_static
 	cd docs && make html SPHINXOPTS=-W
+
+.PHONY: test
+## Run tests
+test:
+	$(PYTHON) -m pytest $(TEST_ARGS)
+
+.PHONY: test-cov
+## Run tests with coverage
+test-cov:
+	$(PYTHON) -m pytest --cov=./ $(TEST_ARGS)
+
+.PHONY: type-check
+## Run mypy for typecheck
+type-check:
+	$(PYTHON) -m mypy src/**/*.py tests/*py scripts/*py
 
 #################################################################################
 # PROJECT RULES                                                                 #
