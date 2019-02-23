@@ -10,6 +10,7 @@ script:
     - make lint
     - make docs
     - make test-cov
+    - make type-check
 after_success:
     - codecov --token=$CODECOV_TOKEN
 cache: pip

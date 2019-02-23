@@ -10,6 +10,7 @@ jupyterlab==0.35.4
 kaggle==1.5.3
 Keras==2.2.4
 mccabe==0.6.1
+mypy==0.670
 networkx==2.2
 nltk==3.4
 numpy==1.16.1

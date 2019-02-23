@@ -151,6 +151,11 @@ test:
 test-cov:
 	$(PYTHON) -m pytest --cov=./ $(TEST_ARGS)
 
+.PHONY: type-check
+## Run mypy for typecheck
+type-check:
+	$(PYTHON) -m mypy src/**/*.py tests/*py scripts/*py
+
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################
