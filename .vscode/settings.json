@@ -1,0 +1,13 @@
+{
+  "python.linting.mypyEnabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.unitTest.pyTestEnabled": true,
+  "python.linting.pydocstyleEnabled": true,
+  "python.formatting.blackArgs": [
+    "--config",
+    "${workspaceFolder}/pyproject.toml"
+  ],
+  "python.formatting.provider": "black",
+  "python.pythonPath": "venv/bin/python",
+  "restructuredtext.confPath": "${workspaceFolder}/docs"
+}

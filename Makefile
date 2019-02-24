@@ -112,6 +112,7 @@ lint:
 	$(PYTHON) -m isort -c --diff
 	$(PYTHON) -m black . --check --diff
 	$(PYTHON) -m pylint src/pipeline src/server src/utils tests scripts
+	$(PYTHON) -m pydocstyle src/pipeline src/server src/utils tests scripts
 
 .PHONY: lint\:fix
 lint\:fix:

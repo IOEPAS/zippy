@@ -20,8 +20,7 @@ CONTAINER_NAME = CONFIG["CONTAINER_NAME"]
 
 
 def copy_example(topic: str):
-    """Creates a copy of the ``example.ipynb`` file."""
-
+    """Create a copy of the ``example.ipynb`` file."""
     date = datetime.date.today().strftime("%Y%m%d")
     username = CONFIG["USERNAME"]
     file_name = f"notebooks/{date}-{username}-{topic}.ipynb"
@@ -33,7 +32,7 @@ def copy_example(topic: str):
 
 
 def push_blob(file_path):
-    """ Write file to Azure blob storage. """
+    """Write file to Azure blob storage."""
     blob_name = file_path.split("/")
     blob_name = "_".join(blob_name)
     file_exists = BLOCK_BLOB_SERVICE.exists(CONTAINER_NAME, blob_name)
@@ -45,7 +44,7 @@ def push_blob(file_path):
 
 
 def pull_blob(file_path):
-    """ Read file from Azure blob storage. """
+    """Read file from Azure blob storage."""
     blob_name = file_path.split("/")
     blob_name = "_".join(blob_name)
     if not Path(file_path).exists():

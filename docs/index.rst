@@ -13,6 +13,7 @@ Contents:
 
    getting-started
    commands
+   developer/index.rst
    reports/index.rst
 
 
