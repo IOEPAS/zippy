@@ -265,7 +265,7 @@ texinfo_documents = [
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"python": ("https://docs.python.org/", None)}
+intersphinx_mapping = {"python": ("https://docs.python.org/3.6", None)}
 
 # Documents to append as an appendix to all manuals.
 # texinfo_appendices = []
@@ -280,3 +280,5 @@ intersphinx_mapping = {"python": ("https://docs.python.org/", None)}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+sys.path.insert(0, "../src")
