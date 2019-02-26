@@ -10,7 +10,7 @@ from azure.storage.blob import BlockBlobService
 
 # Reading the environment variables
 STREAM = open(".env.yml", "r")
-CONFIG = yaml.load(STREAM)
+CONFIG = yaml.safe_load(STREAM)
 
 BLOCK_BLOB_SERVICE = BlockBlobService(
     account_name=CONFIG["AZURE_STORAGE_NAME"], account_key=CONFIG["AZURE_STORAGE_KEY"]
