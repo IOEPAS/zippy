@@ -30,7 +30,7 @@ class HyperParams(HParams):
 
         """
         with open(file) as stream:
-            doc = yaml.load(stream)
+            doc = yaml.safe_load(stream)
             params = doc.get(config)
             if not params:
                 raise AttributeError(
