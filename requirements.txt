@@ -4,7 +4,7 @@ Click==7.0
 coverage==4.5.2
 flake8==3.7.7
 ipython==7.3.0
-jedi==0.13.2
+jedi==0.13.3
 jupyter==1.0.0
 jupyterlab==0.35.4
 kaggle==1.5.3
