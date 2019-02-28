@@ -15,6 +15,7 @@ Contents:
    commands
    developer/index.rst
    reports/index.rst
+   running-mail-server
 
 
 
