@@ -1,6 +1,8 @@
 language: python
 python:
     - '3.6'
+env:
+    global: COVERAGE=true
 before_install:
     - python -m pip install --upgrade pip
 install:
@@ -11,8 +13,6 @@ before_script:
 script:
     - make lint
     - make docs
-    - make test-cov
-    - make type-check
-after_success:
-    - codecov --token=$CODECOV_TOKEN
+    - make unittest && codecov -F unittests
+    - make integrationtest && codecov -F integrationtests
 cache: pip
