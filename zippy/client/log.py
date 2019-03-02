@@ -1,15 +1,29 @@
 """Setup logger."""
 import logging
+import logging.handlers
 import pathlib
 
 from logging.config import dictConfig
 
 import yaml
 
+if __package__:
+    # sphinx imports this module, so need to use relative imports for the purpose
+    from .log_handler import ZippyFileLogHandler
+else:
+    # running this as script doesnot work with relative imports as there is no parent
+    # TODO: split these and put it somewhere else to remove this kind of checks
+    # pylint: disable=no-name-in-module
+    from log_handler import ZippyFileLogHandler  # type: ignore
+
+    # pylint: enable=no-name-in-module
+
 
 def get_logger():
     """Return logger."""
     env_file = pathlib.Path(__file__).parents[2] / ".env.yml"
+
+    logging.handlers.ZippyFileLogHandler = ZippyFileLogHandler
 
     if env_file.exists():
         config = yaml.safe_load(env_file.open())
@@ -25,9 +39,7 @@ def get_logger():
     logger.setLevel(logging.DEBUG)
 
     logger.info("Logger settings seems not to be set in ../../.env.yml .")
-    handler = logging.FileHandler(
-        pathlib.Path(__file__).parents[2] / "output/logs/daemon.log"
-    )
+    handler = ZippyFileLogHandler("daemon.log")
     handler.setLevel(logging.DEBUG)
 
     # create a logging format
