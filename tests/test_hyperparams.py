@@ -25,6 +25,7 @@ def yaml_config() -> IO[str]:
     return file
 
 
+@pytest.mark.unittest
 def test_hyperparam_default(yaml_config: IO[str]) -> None:
     """Test that 'default' config is used on default."""
     hyper_params = HyperParams(file=yaml_config.name)
@@ -32,6 +33,7 @@ def test_hyperparam_default(yaml_config: IO[str]) -> None:
     assert hyper_params.split_ratio == 0.7  # pylint: disable=maybe-no-member
 
 
+@pytest.mark.unittest
 def test_hyperparam_with_config(yaml_config: IO[str]) -> None:
     """Test that custom config works from yaml file."""
     hyper_params = HyperParams(file=yaml_config.name, config="fast")
@@ -39,6 +41,7 @@ def test_hyperparam_with_config(yaml_config: IO[str]) -> None:
     assert hyper_params.split_ratio == 0.6  # pylint: disable=maybe-no-member
 
 
+@pytest.mark.unittest
 def test_hyperparams_with_not_existing_config(yaml_config: IO[str]) -> None:
     """Test that AttributeError is raised on not existing config."""
     with pytest.raises(AttributeError) as exc_info:
