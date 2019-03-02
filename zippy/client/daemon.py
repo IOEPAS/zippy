@@ -244,7 +244,7 @@ def download_new_email(username, password, host, imap_port=993, timeout=3):
 
 
 if __name__ == "__main__":
-    STREAM = open("../../.env.yml", "r")
+    STREAM = open(pathlib.Path(__file__).parents[2] / ".env.yml", "r")
     CONFIG = yaml.safe_load(STREAM)
     CLIENT_CONFIG = CONFIG.get("CLIENT")
     if not CLIENT_CONFIG:
