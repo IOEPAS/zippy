@@ -9,7 +9,8 @@ import yaml
 
 def get_logger():
     """Return logger."""
-    env_file = pathlib.Path("../../.env.yml")
+    env_file = pathlib.Path(__file__).parents[2] / ".env.yml"
+
     if env_file.exists():
         config = yaml.safe_load(env_file.open())
         client_config = config.get("CLIENT")
@@ -24,7 +25,9 @@ def get_logger():
     logger.setLevel(logging.DEBUG)
 
     logger.info("Logger settings seems not to be set in ../../.env.yml .")
-    handler = logging.FileHandler("../../output/logs/daemon.log")
+    handler = logging.FileHandler(
+        pathlib.Path(__file__).parents[2] / "output/logs/daemon.log"
+    )
     handler.setLevel(logging.DEBUG)
 
     # create a logging format
