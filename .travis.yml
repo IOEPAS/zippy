@@ -13,6 +13,6 @@ before_script:
 script:
     - make lint
     - make docs
-    - make unittest && codecov -F unittests
-    - make integrationtest && codecov -F integrationtests
+    - make unittest && codecov
+    - make integrationtest && codecov
 cache: pip
