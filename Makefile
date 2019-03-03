@@ -162,7 +162,8 @@ integrationtest:
 
 .PHONY: test
 ## Run tests
-test: unittest integrationtest
+test:
+	$(PYTHON) -m pytest $(COV_ARGS) $(TEST_ARGS)
 
 .PHONY: type-check
 ## Run mypy for typecheck
