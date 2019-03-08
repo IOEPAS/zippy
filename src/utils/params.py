@@ -1,63 +1,59 @@
 """Hyperparameters and App params related functions."""
+from typing import IO, Optional
+
 import yaml
 
-from tensorflow.contrib.training import HParams  # pylint: disable=no-name-in-module
 
+class HyperParams(dict):
+    """HParams with parameters loading capability from yaml files.
 
-class HyperParams(HParams):
-    """HParams with parameters loading capability from yaml files."""
+    Parameters
+    ----------
+    file: str, optional
+        Path to yaml file
+    stream: io.TextIOWrapper, optional
+        Use already opened stream
+    config: str, optional
+        Config to use
 
-    def parse_yaml(self, file: str, config: str = "default") -> "HyperParams":
-        """
-        Parse yaml file to use as hyperparameters.
+    Raises
+    ------
+    AttributeError
+        If config does not exist with given name
+    """
 
-        Parameters
-        ----------
-        file:
-            Path to yaml file
-        config:
-            Config to use
+    def __init__(
+        self,
+        file: Optional[str] = None,
+        stream: Optional[IO[str]] = None,
+        config: Optional[str] = "default",
+    ) -> None:
+        super().__init__()
 
-        Returns
-        -------
-        HyperParams:
-            hyperparameter instance
+        if stream:
+            doc = yaml.safe_load(stream.read())
+        elif file:
+            with open(file, "r") as stream_:
+                doc = yaml.safe_load(stream_.read())
+        else:
+            ## empty initialization
+            return
 
-        Raises
-        ------
-        AttributeError
-            If config doesnot exist with given name
+        params = doc.get(config)
 
-        """
-        with open(file) as stream:
-            doc = yaml.safe_load(stream)
-            params = doc.get(config)
-            if not params:
-                raise AttributeError(
-                    f"Config '{config}' could not be found in '{file}'."
-                )
+        if not params:
+            raise AttributeError(f"Config '{config}' could not be found in '{file}'.")
 
-            for key, value in params.items():
-                self.add_hparam(key, value)
-        return self
+        self.update(params)
 
-    def to_yaml(self, config: str = "default") -> str:
-        """
-        Serialize hyperparameters to yaml.
+    def __getattr__(self, key):
+        """Make attribute of params available via dot operator."""
+        return super().__getitem__(key)
 
-        Parameters
-        ----------
-        config:
-            Config to dump
+    def __setattr__(self, key, value):
+        """Set attribute of params via dot operator."""
+        super().__setitem__(key, value)
 
-        Returns
-        -------
-        str:
-            yaml string
-
-        Raises
-        ------
-        NotImplementedError
-
-        """
-        raise NotImplementedError("Serializing to yaml is not currently supported.")
+    def __delattr__(self, key):
+        """Make attribute of params deletable via dot operator."""
+        super().__delitem__(key)
