@@ -2,7 +2,7 @@ language: python
 python:
     - '3.6'
 env:
-    global: COVERAGE=true
+    global: COVERAGE=true COV_ARGS="--cov-report xml:coverage.xml"
 before_install:
     - python -m pip install --upgrade pip
 install:
