@@ -33,7 +33,7 @@ COVERAGE?=
 COV_ARGS?=
 
 ifeq ($(COVERAGE), true)
-    COV_ARGS="--cov=./"
+    COV_ARGS+=--cov=./
 endif
 
 COLOR=\x1b[36m
