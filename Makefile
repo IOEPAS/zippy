@@ -175,10 +175,6 @@ type-check:
 package:
 	$(PYTHON) -m pip install -e .
 
-.PHONY: package
-## Make zippy available as a package
-package:
-	$(PYTHON) -m pip install -e .
 
 #################################################################################
 # PROJECT RULES                                                                 #
