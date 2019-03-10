@@ -7,16 +7,7 @@ from logging.config import dictConfig
 
 import yaml
 
-if __package__:
-    # sphinx imports this module, so need to use relative imports for the purpose
-    from .log_handler import ZippyFileLogHandler
-else:
-    # running this as script doesnot work with relative imports as there is no parent
-    # TODO: split these and put it somewhere else to remove this kind of checks
-    # pylint: disable=no-name-in-module
-    from log_handler import ZippyFileLogHandler  # type: ignore
-
-    # pylint: enable=no-name-in-module
+from zippy.utils.log_handler import ZippyFileLogHandler
 
 
 def get_logger():
