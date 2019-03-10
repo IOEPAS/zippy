@@ -8,7 +8,7 @@ from typing import IO
 import pytest
 import yaml
 
-from src.utils.params import HyperParams
+from zippy.utils.params import HyperParams
 
 
 @pytest.fixture

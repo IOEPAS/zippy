@@ -132,3 +132,4 @@ dmypy.json
 .idea/**/contentModel.xml
 
 /mailconfig
+pip-wheel-metadata

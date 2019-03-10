@@ -111,8 +111,8 @@ lint:
 	@echo -e "Use ${COLOR}make lint:fix${NO_COLOR} to fix linter issues. \n"
 	$(PYTHON) -m isort -c --diff
 	$(PYTHON) -m black . --check --diff
-	$(PYTHON) -m pylint src/pipeline src/server src/utils tests scripts
-	$(PYTHON) -m pydocstyle src/pipeline src/server src/utils tests scripts
+	$(PYTHON) -m pylint zippy/pipeline zippy/server zippy/utils zippy/client tests scripts
+	$(PYTHON) -m pydocstyle zippy/pipeline zippy/server zippy/utils zippy/client tests scripts
 
 .PHONY: lint\:fix
 lint\:fix:
@@ -155,7 +155,12 @@ test-cov:
 .PHONY: type-check
 ## Run mypy for typecheck
 type-check:
-	$(PYTHON) -m mypy src/**/*.py tests/*py scripts/*py
+	$(PYTHON) -m mypy zippy/**/*.py tests/*py scripts/*py
+
+.PHONY: package
+## Make zippy available as a package
+package:
+	$(PYTHON) -m pip install -e .
 
 #################################################################################
 # PROJECT RULES                                                                 #
