@@ -15,5 +15,5 @@ script:
     - make docs
     - make unittest && codecov
     - make integrationtest && codecov
-    - cat output/logs/daemon.log
+    - make type-check
 cache: pip
