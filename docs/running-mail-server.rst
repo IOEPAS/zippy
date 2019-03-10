@@ -27,7 +27,7 @@ Server setup
       Running ``python -m http.server 8000`` and opening http://localhost.org:8000
       should work.
 
-2. Change directory into ``src/server``.
+2. Change directory into ``zippy/server``.
 3. Pull the docker image using:
 
     .. code-block:: console
@@ -168,7 +168,7 @@ Making backups of email
     -ti tvial/docker-mailserver \
     tar cvzf /backups/docker-mailserver-`date +%y%m%d-%H%M%S`.tgz /var/mail
 
-Assuming that the current directory is ``src/server``, this should make a
+Assuming that the current directory is ``zippy/server``, this should make a
 backup in ``output`` folder.
 If backup is needed in any other folder, replace ``"$(pwd)/../../output"`` with
 the folder where backup is to be placed.

@@ -6,6 +6,8 @@ before_install:
 install:
     - pip install --progress-bar off -r requirements.txt
     - pip install codecov
+before_script:
+    - make package
 script:
     - make lint
     - make docs
