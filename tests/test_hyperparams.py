@@ -52,6 +52,7 @@ def test_hyperparams_with_not_existing_config(yaml_config: IO[str]) -> None:
     )
 
 
+@pytest.mark.unittest
 def test_hyperparams_dot_dict_accesses(yaml_config: IO[str]) -> None:
     """Test dot and [] accesses."""
     hyper_params = HyperParams(file=yaml_config.name, config="default")
@@ -74,6 +75,7 @@ def test_hyperparams_dot_dict_accesses(yaml_config: IO[str]) -> None:
     assert "alpha" not in hyper_params
 
 
+@pytest.mark.unittest
 def test_stream_open_hyperparams(yaml_config: IO[str]) -> None:
     """Test opening via stream."""
     with open(yaml_config.name) as stream:
@@ -83,12 +85,14 @@ def test_stream_open_hyperparams(yaml_config: IO[str]) -> None:
         assert not stream.closed
 
 
+@pytest.mark.unittest
 def test_not_passing_any_args_should_have_empty_data() -> None:
     """Test passing no args should have empty data."""
     hyper_params = HyperParams()
     assert not hyper_params
 
 
+@pytest.mark.unittest
 def test_json_as_hyperparams() -> None:
     """Test that the hyperparams work with json also."""
     data = """{
