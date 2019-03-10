@@ -12,7 +12,7 @@ import mock
 import pytest
 import yaml
 
-from src.client import daemon
+from zippy.client import daemon
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def run_daemon(request, env_with_config):
     pid_file = pathlib.Path(tempfile.gettempdir()) / "zippy_daemon.pid"
     assert not pid_file.exists()
 
-    Popen("./src/client/daemon.py", shell=True, env=env_with_config).wait()
+    Popen("./zippy/client/daemon.py", shell=True, env=env_with_config).wait()
 
     timeout = time.time() + 5  # 5 sec
 
@@ -135,7 +135,7 @@ def test_that_daemon_stops_when_stop_is_called(env_with_config):
     pid_file = pathlib.Path(tempfile.gettempdir()) / "zippy_daemon.pid"
     pid = int(pid_file.read_text().strip())
 
-    Popen("./src/client/daemon.py stop", shell=True, env=env_with_config).wait()
+    Popen("./zippy/client/daemon.py stop", shell=True, env=env_with_config).wait()
 
     assert not pid_file.exists()
 
@@ -149,7 +149,7 @@ def test_that_daemon_restarts_when_restart_is_called(env_with_config):
     pid_file = pathlib.Path(tempfile.gettempdir()) / "zippy_daemon.pid"
     pid = int(pid_file.read_text().strip())
 
-    Popen("./src/client/daemon.py restart", shell=True, env=env_with_config).wait()
+    Popen("./zippy/client/daemon.py restart", shell=True, env=env_with_config).wait()
 
     # old process should have been stopped
     with pytest.raises(OSError):
@@ -174,7 +174,7 @@ def test_if_daemon_running_again_start_should_fail(env_with_config):
     pid = int(pid_file.read_text().strip())
 
     # should exit with 1 if already running
-    child = Popen("./src/client/daemon.py start", shell=True, env=env_with_config)
+    child = Popen("./zippy/client/daemon.py start", shell=True, env=env_with_config)
     child.communicate()
     assert child.returncode == 1
 
