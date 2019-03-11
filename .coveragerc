@@ -4,7 +4,7 @@ omit=venv*
 branch = True
 
 [report]
-omit=venv*, node_modules, **/migrations/**, scripts/*
+omit=venv*, node_modules, **/migrations/**, scripts/*, setup.py
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Have to re-enable the standard pragma
