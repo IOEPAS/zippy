@@ -3,7 +3,7 @@ black==19.3b0
 Click==7.0
 coverage==4.5.3
 flake8==3.7.7
-ipython==7.3.0
+ipython==7.4.0
 jedi==0.13.3
 jupyter==1.0.0
 jupyterlab==0.35.4
