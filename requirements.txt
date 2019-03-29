@@ -46,6 +46,6 @@ tornado==6.0.1
 tqdm==4.31.1
 urllib3==1.24.1
 watermark==1.8.1
-Werkzeug==0.14.1
+Werkzeug==0.15.1
 azure-storage-blob==1.5.0
 imapclient==2.1.0
