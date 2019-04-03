@@ -56,7 +56,8 @@ Server setup
                        -f rainloop.yml \
                           up -d
 
-    .. note:: Follow :ref:`Rainloop client setup <Rainloop>` later on.
+    .. note:: Follow `Rainloop client setup <#rainloop>`_ later on.
+
 
 6. Make ``setup.sh`` executable.
 
@@ -171,8 +172,9 @@ A popup should appear as follows. Fill everything as shown below:
 Rainloop
 ~~~~~~~~
 
-.. warning:: To use this, you need to have
-   :ref:`run server with rainloop <mail_server_with_rainloop>`.
+.. warning:: To use this, you need to have `run server with rainloop`_.
+
+.. _run server with rainloop: #mail-server-with-rainloop
 
 1. Open http://localhost.org:8888/?admin or http://localhost:8888/?admin.
 
@@ -187,7 +189,7 @@ Rainloop
 
   .. image:: ../assets/screenshots/11-email-client-setup.png
 
-  .. todo::
+  .. note::
     There seems to be a problem with networking between two containers.
     Instead of ip address, it'd be better to use ``mail`` as server. But, it
     doesnot seem to work at the moment.
