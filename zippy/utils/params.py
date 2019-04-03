@@ -36,7 +36,7 @@ class HyperParams(dict):
             with open(file, "r") as stream_:
                 doc = yaml.safe_load(stream_.read())
         else:
-            ## empty initialization
+            # empty initialization
             return
 
         params = doc.get(config)

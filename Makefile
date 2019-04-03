@@ -112,6 +112,7 @@ lint:
 	$(PYTHON) -m isort -c --diff
 	$(PYTHON) -m black . --check --diff
 	$(PYTHON) -m pylint zippy/pipeline zippy/server zippy/utils zippy/client tests scripts
+	$(PYTHON) -m flake8
 	$(PYTHON) -m pydocstyle zippy/pipeline zippy/server zippy/utils zippy/client tests scripts
 
 .PHONY: lint\:fix
