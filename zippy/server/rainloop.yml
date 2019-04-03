@@ -1,0 +1,18 @@
+version: "2"
+
+services:
+  rainloop:
+    image: hardware/rainloop
+    container_name: rainloop
+    volumes:
+      - rainloop_data:/rainloop/data
+    depends_on:
+      - mail
+    ports:
+      - "8888:8888"
+    environment:
+      - LOG_TO_STDOUT=true
+
+volumes:
+  rainloop_data:
+    driver: local

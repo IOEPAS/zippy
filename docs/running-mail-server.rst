@@ -40,11 +40,23 @@ Server setup
 
       $ cp env.dist .env
 
-5. Start container
+5. Start container (run any one command shown below):
 
+  Only mailserver:
     .. code-block:: console
 
       $ docker-compose up -d mail
+
+  .. _mail_server_with_rainloop:
+
+  Mailserver with rainloop:
+    .. code-block:: console
+
+      $ docker-compose -f docker-compose.yml \
+                       -f rainloop.yml \
+                          up -d
+
+    .. note:: Follow :ref:`Rainloop client setup <Rainloop>` later on.
 
 6. Make ``setup.sh`` executable.
 
@@ -156,6 +168,35 @@ A popup should appear as follows. Fill everything as shown below:
   Notice the server hostnames. They don't have `.` (dot) before `localhost.org`.
   Click ``Done`` and approve warning of not having encryption.
 
+Rainloop
+~~~~~~~~
+
+.. warning:: To use this, you need to have
+   :ref:`run server with rainloop <mail_server_with_rainloop>`.
+
+1. Open http://localhost.org:8888/?admin or http://localhost:8888/?admin.
+
+2. Admin login page should load. Initially, admin credential is:
+    *username* '**admin**' and *password* '**12345**'.
+
+   Enter the credentals and login.
+
+3. Admin page should open. In the left-hand sidebar, there should be **Domains**
+   section. Open the section and then "+Add Domain" button. A popup should open.
+   Enter as shown in screenshot below:
+
+  .. image:: ../assets/screenshots/11-email-client-setup.png
+
+  .. todo::
+    There seems to be a problem with networking between two containers.
+    Instead of ip address, it'd be better to use ``mail`` as server. But, it
+    doesnot seem to work at the moment.
+
+4. Click **Test** to check the connection and then, click **Update**/**Add**.
+
+5. Now, open http://localhost.org:8888/ or http://localhost:8888/
+   and you should be able to login to the email
+   addresses created earlier.
 
 Making backups of email
 -----------------------
