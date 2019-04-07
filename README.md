@@ -1,7 +1,5 @@
-1. Copy `env.example.yml` to `.env.yml`.
-2. Add necessary variables to `.env.yml`.
-3. Ensure python3.6 is installed(else, get py3.6 from pyenv or set environment using conda for python3.6).
-4. Create virtual environment and activate.
-5. Install all requirements from `requirements.txt`.
-6. `make package`.
-7. `make` to see other options
+[![Build Status](https://travis-ci.com/skshetry/zippy.svg?token=EfU2X7qimVZNzpsByr8q&branch=master)](https://travis-ci.com/skshetry/zippy)
+[![codecov](https://codecov.io/gh/skshetry/fewa/branch/master/graph/badge.svg?token=Dib0BvAZhA)](https://codecov.io/gh/skshetry/fewa)
+[![CodeFactor](https://www.codefactor.io/repository/github/skshetry/zippy/badge)](https://www.codefactor.io/repository/github/skshetry/zippy)
+
+Check [docs on getting started](docs/getting-started.rst) for more information.

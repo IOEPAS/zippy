@@ -1,3 +1,4 @@
+---
 version: "2"
 services:
   mail:
@@ -6,10 +7,13 @@ services:
     domainname: ${DOMAINNAME}
     container_name: ${CONTAINER_NAME}
     ports:
-      - "1025:25"
-      - "1143:143"
-      - "1587:587"
-      - "1993:993"
+      - "1025:25" # receiving email from other mailservers
+      - "1110:110" # POP3 client
+      - "1143:143" # StartTLS IMAP client
+      - "1465:465" # SSL Client email submission
+      - "1587:587" # TLS Client email submission
+      - "1993:993" # TLS/SSL IMAP client
+      - "1995:995" # TLS/SSL POP3 client
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - maildata:/var/mail

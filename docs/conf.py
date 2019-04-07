@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# zippie documentation build configuration file, created by
+# zippy documentation build configuration file, created by
 # sphinx-quickstart.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -53,7 +53,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "zippie"
+project = "zippy"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -197,8 +197,8 @@ latex_elements = {
 latex_documents = [
     (
         "index",
-        "zippie.tex",
-        "zippie Documentation",
+        "zippy.tex",
+        "zippy Documentation",
         "Your name (or your organization/company/team)",
         "manual",
     )
@@ -232,8 +232,8 @@ latex_documents = [
 man_pages = [
     (
         "index",
-        "zippie",
-        "zippie Documentation",
+        "zippy",
+        "zippy Documentation",
         ["Your name (or your organization/company/team)"],
         1,
     )
@@ -251,10 +251,10 @@ man_pages = [
 texinfo_documents = [
     (
         "index",
-        "zippie",
-        "zippie Documentation",
+        "zippy",
+        "zippy Documentation",
         "Your name (or your organization/company/team)",
-        "zippie",
+        "zippy",
         "A short description of the project.",
         "Miscellaneous",
     )
@@ -280,3 +280,5 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3.6", None)}
 todo_include_todos = True
 
 sys.path.insert(0, "../zippy")
+
+autosectionlabel_prefix_document = True
