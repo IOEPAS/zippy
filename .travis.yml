@@ -1,18 +1,20 @@
 language: python
 python:
-    - '3.6'
+  - "3.6"
 before_install:
-    - python -m pip install --upgrade pip
+  - python -m pip install --upgrade pip
 install:
-    - pip install --progress-bar off -r requirements.txt
-    - pip install codecov
+  - pip install --progress-bar off -r requirements.txt
+  - pip install codecov
+env:
+  global: COVERAGE=true COV_ARGS="--cov-report xml:coverage.xml"
 before_script:
-    - make package
+  - make package
 script:
-    - make lint
-    - make docs
-    - make test-cov
-    - make type-check
+  - make lint
+  - make docs
+  - make test
+  - make type-check
 after_success:
-    - codecov --token=$CODECOV_TOKEN
+  - codecov --token=$CODECOV_TOKEN
 cache: pip

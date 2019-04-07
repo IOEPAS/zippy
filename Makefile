@@ -29,6 +29,14 @@ FILENAME=
 
 TEST_ARGS=
 
+COVERAGE?=
+COV_ARGS?=
+
+ifeq ($(COVERAGE), true)
+    COV_ARGS+=--cov=./
+endif
+
+
 COLOR=\x1b[36m
 NO_COLOR=\x1b[m
 
@@ -146,12 +154,7 @@ docs:
 .PHONY: test
 ## Run tests
 test:
-	$(PYTHON) -m pytest $(TEST_ARGS)
-
-.PHONY: test-cov
-## Run tests with coverage
-test-cov:
-	$(PYTHON) -m pytest --cov=./ $(TEST_ARGS)
+	$(PYTHON) -m pytest $(COV_ARGS) $(TEST_ARGS)
 
 .PHONY: type-check
 ## Run mypy for typecheck

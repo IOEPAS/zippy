@@ -9,14 +9,18 @@ zippy documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   getting-started
-   commands
-   developer/index.rst
-   reports/index.rst
-   running-mail-server
-
+    getting-started
+    commands
+    running-mail-server
+    setting-mail-clients
+    setup-sh
+    docker
+    testing
+    ci-and-coverage
+    developer/index.rst
+    reports/index.rst
 
 
 Indices and tables
