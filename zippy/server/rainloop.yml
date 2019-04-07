@@ -12,6 +12,9 @@ services:
       - "8888:8888"
     environment:
       - LOG_TO_STDOUT=true
+  mail:
+    # expose ports of mail server to the rainloop container
+    expose: ["25", "110", "143", "465", "587", "993", "995"]
 
 volumes:
   rainloop_data:
