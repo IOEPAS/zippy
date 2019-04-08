@@ -5,7 +5,7 @@ coverage==4.5.3
 flake8==3.7.7
 imapclient==2.1.0
 ipython==7.4.0
-isort==4.3.16
+isort==4.3.17
 jupyter==1.0.0
 jupyterlab==0.35.4
 kaggle==1.5.3
