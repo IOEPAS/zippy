@@ -164,7 +164,7 @@ type-check:
 .PHONY: package
 ## Make zippy available as a package
 package:
-	$(PYTHON) -m pip install -e .
+	$(PYTHON) -m pip install -e . --no-use-pep517
 
 #################################################################################
 # PROJECT RULES                                                                 #
