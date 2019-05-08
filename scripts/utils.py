@@ -47,11 +47,20 @@ def pull_blob(file_path):
     """Read file from Azure blob storage."""
     blob_name = file_path.split("/")
     blob_name = "_".join(blob_name)
-    if not Path(file_path).exists():
-        BLOCK_BLOB_SERVICE.get_blob_to_path(CONTAINER_NAME, blob_name, file_path)
-        print("{0} downloaded to {1}.".format(blob_name, file_path))
-    else:
-        print(f"File {file_path} already exists.")
+    file_path = Path(file_path)
+    folder_path = file_path.parent
+
+    if file_path.exists():
+        print("File {0} already exists.".format(file_path))
+        return
+    if not folder_path.exists():
+        folder_path.mkdir(parents=True, exist_ok=True)
+        print("{0} did not exist. Created.".format(folder_path))
+
+    print("Downloading {0} to {1} ...".format(blob_name, file_path))
+
+    BLOCK_BLOB_SERVICE.get_blob_to_path(CONTAINER_NAME, blob_name, str(file_path))
+    print("{0} downloaded to {1}.".format(blob_name, file_path))
 
 
 if __name__ == "__main__":
