@@ -19,5 +19,5 @@ def get_config(config):
         message = (
             f"{config} config missing. Please see 'env.example.yml' for example usage."
         )
-        raise ValueError(message)
+        raise KeyError(message)
     return conf

@@ -16,15 +16,17 @@ class ZippyFileLogHandler(RotatingFileHandler):
         super().__init__(log_dir / filename, *args, **kwargs)
 
 
-def get_logger(name: str):
+def get_logger(name: str) -> logging.Logger:
     """Return logger if in config, else use basic console."""
-    conf = config.get_config("logger")
-
-    if conf:
-        dictConfig(conf)
-        logger = logging.getLogger(name)
-    else:
+    logger = logging.getLogger(name)
+    try:
+        conf = config.get_config("logger")
+    except KeyError:
         logging.basicConfig(level=logging.ERROR)
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
+    else:
+        logger = logging.getLogger(name)
+        dictConfig(conf)
+
     return logger
