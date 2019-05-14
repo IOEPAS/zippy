@@ -1,5 +1,5 @@
 alabaster==0.7.12
-azure-storage-blob==1.5.0
+azure-storage-blob==2.0.1
 black==19.3b0
 coverage==4.5.3
 flake8==3.7.7
