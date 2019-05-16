@@ -1,32 +1,49 @@
 """Module to apply the rank algorithm to emails."""
 
-import os
-import pandas as pd
+import pathlib
+
 import nltk
+import pandas as pd
+
 from sklearn.feature_extraction.text import CountVectorizer
 
 from zippy.pipeline.data import parse_email
 
-MODELS = os.curdir + '/../../output/models/simplerank/'
-VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words('english'))
+MODELS = pathlib.Path(__file__).parents[3] / "output/models/simplerank"
+
+try:
+    VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
+except LookupError:
+    nltk.download("stopwords")
+    VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
+
 
 def load_weights():
     """Load weights from the CSV."""
 
-    from_wt = pd.read_csv(MODELS + 'from_weight.csv', index_col=0)
-    thread_sender_wt = pd.read_csv(MODELS + 'thread_senders_weight.csv', index_col=0)
-    thread_wt = pd.read_csv(MODELS + 'thread_weights.csv', index_col=0)
-    thread_term_wt = pd.read_csv(MODELS + 'thread_term_weights.csv', index_col=0)
-    msg_term_wt = pd.read_csv(MODELS + 'msg_terms_weight.csv', index_col=0)
-    previous_ranks = pd.read_csv(MODELS + 'rank_df.csv', index_col=0)
-    threshold = previous_ranks['rank'].median()
-    return (from_wt, thread_sender_wt, thread_wt, thread_term_wt, msg_term_wt, threshold)
+    from_wt = pd.read_csv(MODELS / "from_weight.csv", index_col=0)
+    thread_sender_wt = pd.read_csv(MODELS / "thread_senders_weight.csv", index_col=0)
+    thread_wt = pd.read_csv(MODELS / "thread_weights.csv", index_col=0)
+    thread_term_wt = pd.read_csv(MODELS / "thread_term_weights.csv", index_col=0)
+    msg_term_wt = pd.read_csv(MODELS / "msg_terms_weight.csv", index_col=0)
+    previous_ranks = pd.read_csv(MODELS / "rank_df.csv", index_col=0)
+    threshold = previous_ranks["rank"].median()
+    return (
+        from_wt,
+        thread_sender_wt,
+        thread_wt,
+        thread_term_wt,
+        msg_term_wt,
+        threshold,
+    )
+
 
 def get_weights(search_term, weight_df, term=True):
     """Get weights from thread subject or frequent terms."""
 
     search_term = str(search_term)
-    if (len(search_term)>0):
+    search_length = len(search_term)
+    if search_length > 0:
         if term:
             term_match = False
             for search_item in search_term:
@@ -34,66 +51,98 @@ def get_weights(search_term, weight_df, term=True):
                 term_match = term_match | match
         else:
             term_match = weight_df.thread.str.contains(search_term, regex=False)
-        
+
         match_weights = weight_df.weight[term_match]
-        if len(match_weights)<1:
+        match_length = len(match_weights)
+        if match_length < 1:
             return 1
-        else:
-            return match_weights.mean()
-    else:
-        return 1
+        return match_weights.mean()
+    return 1
 
-def rank_message(message, weights):
-    """Rank the email and determine if email should be prioritized."""
 
-    msg = pd.DataFrame(parse_email.from_message(message))
-    msg['Date'] = pd.to_datetime(msg['Date'], infer_datetime_format=True)
-    from_weight, *threads, msg_term_weights, threshold = weights
-    senders_weight, thread_weights, thread_term_weights = threads
-    # First, using the from weights
-    from_wt = from_weight[from_weight['From'] == msg['From'][0]]
-    if len(from_wt)>0:
-        msg_from_wt = from_wt.weight
-    else:
-        msg_from_wt = 1
-    
-    # Second, using senders weights from threads
-    senders_wt = senders_weight[senders_weight['From'] == msg['From'][0]]
-    if len(senders_wt)>0:
+def get_weights_from_sender(message, from_weight):
+    """Get weights from email sender."""
+
+    from_wt = from_weight[from_weight["From"] == message["From"][0]]
+    len_from = len(from_wt)
+    if len_from > 0:
+        return from_wt.weight
+    return 1
+
+
+def get_weights_from_thread(msg, thread_weights, count_vector):
+    """Get weights for threads."""
+
+    # using senders weights from threads
+    senders_weight, thread_weights, thread_term_weights = thread_weights
+    senders_wt = senders_weight[senders_weight["From"] == msg["From"][0]]
+    len_senders = len(senders_wt)
+    if len_senders > 0:
         msg_thread_from_wt = senders_wt.weight
     else:
         msg_thread_from_wt = 1
-        
+
     # Then, from thread activity
-    is_thread = len(msg.Subject.str.split('re: ')) > 1
-    if is_thread:
-        subject = msg.Subject.str.split('re: ')[1]
-        msg_thread_activity_wt = get_weights(subject, thread_weights, term=False)
-    else:
-        msg_thread_activity_wt = 1
-        
+    subject = msg.Subject.str.split("re: ")[1]
+    msg_thread_activity_wt = get_weights(subject, thread_weights, term=False)
+
     # Then, weights based on terms in threads
     try:
-        VEC.fit_transform(list(msg['Subject']))
-        msg_thread_terms = VEC.get_feature_names()
+        count_vector.fit_transform(list(msg["Subject"]))
+        msg_thread_terms = count_vector.get_feature_names()
         msg_thread_term_wt = get_weights(msg_thread_terms, thread_term_weights)
-    except:
+    except ValueError:
         # Some subjects from the test set result in empty vocabulary
         msg_thread_term_wt = 1
-    
-    # Then, weights based on terms in message
+
+    return (msg_thread_from_wt, msg_thread_activity_wt, msg_thread_term_wt)
+
+
+def get_weights_from_terms(msg, msg_term_weights, count_vector):
+    """Get weights from message terms."""
+
     try:
-        VEC.fit_transform(list(msg['content']))
-        msg_terms = VEC.get_feature_names()
+        count_vector.fit_transform(list(msg["content"]))
+        msg_terms = count_vector.get_feature_names()
         msg_terms_wt = get_weights(msg_terms, msg_term_weights)
-    except:
+    except ValueError:
         # Some subjects from the test set result in empty vocabulary
         msg_terms_wt = 1
-        
-    
+    return msg_terms_wt
+
+
+def rank_message(message, weights=None):
+    """Rank the email and determine if email should be prioritized."""
+
+    # load weights if not passed.
+    if not weights:
+        weights = load_weights()
+
+    msg = pd.DataFrame(parse_email.from_message(message))
+    msg["Date"] = pd.to_datetime(msg["Date"], infer_datetime_format=True)
+    from_weight, *threads, msg_term_weights, threshold = weights
+    # First, using the from weights
+    msg_from_wt = get_weights_from_sender(msg, from_weight)
+    # Secondly, from threads
+    is_thread = len(msg.Subject.str.split("re: ")) > 1
+    if is_thread:
+        threads = get_weights_from_thread(msg, threads, VEC)
+        msg_thread_from_wt, msg_thread_activity_wt, msg_thread_term_wt = threads
+    else:
+        msg_thread_from_wt, msg_thread_activity_wt, msg_thread_term_wt = 1, 1, 1
+
+    # Then, weights based on terms in message
+    msg_terms_wt = get_weights_from_terms(msg, msg_term_weights, VEC)
+
     # Calculating Rank
-    rank = float(msg_from_wt) * float(msg_thread_from_wt) * float(msg_thread_activity_wt) * float(msg_thread_term_wt) * float(msg_terms_wt)
+    rank = (
+        float(msg_from_wt)
+        * float(msg_thread_from_wt)
+        * float(msg_thread_activity_wt)
+        * float(msg_thread_term_wt)
+        * float(msg_terms_wt)
+    )
 
     priority = rank > threshold
-    
+
     return [message, rank, priority]

@@ -1,6 +1,7 @@
 """Test client for main client."""
 import logging
 
+from unittest import mock
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
@@ -164,20 +165,31 @@ def test_retrieving_new_emails_positive_feedback(capsys):
             b"RFC822": b"From: test1@email.com\r\n"
             b"Message-ID: <id1@email.com>\r\n"
             b"Subject: legen\r\n"
-            b"To: test2@email.com\r\n",
+            b"To: test2@email.com\r\n"
+            b"Date: 05/23/2019\r\n",
         },
         "2": {
             b"SEQ": 12,
             b"RFC822": b"From: test1@email.com\r\n"
             b"Message-ID: <id2@email.com>\r\n"
             b"Subject: dary\r\n"
-            b"To: test2@email.com\r\n",
+            b"To: test2@email.com\r\n"
+            b"Date: 05/24/2019\r\n",
         },
     }
+    # patch rank_message. Returns [message, rank, priority]
+    with mock.patch(
+        "zippy.client.main.rank_message", return_value=["", 0.5, 2]
+    ) as mocked_ranker:
+        main._retrieve_new_emails(  # pylint: disable=protected-access
+            server=server, user=main.EmailAuthUser("test2@email.com", "password")
+        )
 
-    main._retrieve_new_emails(  # pylint: disable=protected-access
-        server=server, user=main.EmailAuthUser("test2@email.com", "password")
-    )
+        assert mocked_ranker.call_count == 2
 
-    captured = capsys.readouterr()
-    assert "1 test1@email.com legen\n2 test1@email.com dary" in captured.out
+        captured = capsys.readouterr()
+        assert (
+            # we did not send any message, so, no message on the list. TODO
+            "1 test1@email.com legen\n['', 0.5, 2]\n"
+            "2 test1@email.com dary\n['', 0.5, 2]\n"
+        ) in captured.out
