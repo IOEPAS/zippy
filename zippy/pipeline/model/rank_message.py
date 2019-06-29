@@ -6,10 +6,19 @@ import nltk
 import pandas as pd
 
 from sklearn.feature_extraction.text import CountVectorizer
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 
 from zippy.pipeline.data import parse_email
 
-MODELS = pathlib.Path(__file__).parents[3] / "output/models/simplerank"
+SIMPLE_MODEL = pathlib.Path(__file__).parents[3] / "output/models/simplerank"
+INTENT_MODEL = (
+    pathlib.Path(__file__).parents[3] / "output/models/intent/intent-model-lstm.h5"
+)
+
+VOCABULARY_SIZE = 20000
+TOKENIZER = Tokenizer(num_words=VOCABULARY_SIZE)
 
 try:
     VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
@@ -18,15 +27,25 @@ except LookupError:
     VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
 
 
+def get_sequence(message, tokenizer):
+    """Return the text as a sequence vector."""
+    tokenizer.fit_on_texts([message])
+    sequences = tokenizer.texts_to_sequences([message])
+    sequence = pad_sequences(sequences, maxlen=50)
+    return sequence
+
+
 def load_weights():
     """Load weights from the CSV."""
 
-    from_wt = pd.read_csv(MODELS / "from_weight.csv", index_col=0)
-    thread_sender_wt = pd.read_csv(MODELS / "thread_senders_weight.csv", index_col=0)
-    thread_wt = pd.read_csv(MODELS / "thread_weights.csv", index_col=0)
-    thread_term_wt = pd.read_csv(MODELS / "thread_term_weights.csv", index_col=0)
-    msg_term_wt = pd.read_csv(MODELS / "msg_terms_weight.csv", index_col=0)
-    previous_ranks = pd.read_csv(MODELS / "rank_df.csv", index_col=0)
+    from_wt = pd.read_csv(SIMPLE_MODEL / "from_weight.csv", index_col=0)
+    thread_sender_wt = pd.read_csv(
+        SIMPLE_MODEL / "thread_senders_weight.csv", index_col=0
+    )
+    thread_wt = pd.read_csv(SIMPLE_MODEL / "thread_weights.csv", index_col=0)
+    thread_term_wt = pd.read_csv(SIMPLE_MODEL / "thread_term_weights.csv", index_col=0)
+    msg_term_wt = pd.read_csv(SIMPLE_MODEL / "msg_terms_weight.csv", index_col=0)
+    previous_ranks = pd.read_csv(SIMPLE_MODEL / "rank_df.csv", index_col=0)
     threshold = previous_ranks["rank"].median()
     return (
         from_wt,
@@ -83,7 +102,7 @@ def get_weights_from_thread(msg, thread_weights, count_vector):
         msg_thread_from_wt = 1
 
     # Then, from thread activity
-    subject = msg.Subject.str.split("re: ")[1]
+    subject = msg["Subject"]
     msg_thread_activity_wt = get_weights(subject, thread_weights, term=False)
 
     # Then, weights based on terms in threads
@@ -118,14 +137,13 @@ def rank_message(message, weights=None):
     if not weights:
         weights = load_weights()
 
-    msg = pd.DataFrame(parse_email.from_message(message))
+    msg = pd.DataFrame(parse_email.get_from_message(message))
     msg["Date"] = pd.to_datetime(msg["Date"], infer_datetime_format=True)
     from_weight, *threads, msg_term_weights, threshold = weights
     # First, using the from weights
     msg_from_wt = get_weights_from_sender(msg, from_weight)
     # Secondly, from threads
-    is_thread = len(msg.Subject.str.split("re: ")) > 1
-    if is_thread:
+    if msg["is_thread"][0]:
         threads = get_weights_from_thread(msg, threads, VEC)
         msg_thread_from_wt, msg_thread_activity_wt, msg_thread_term_wt = threads
     else:
@@ -145,4 +163,9 @@ def rank_message(message, weights=None):
 
     priority = rank > threshold
 
-    return [message, rank, priority]
+    intent_model = load_model(INTENT_MODEL)
+    intent_score = intent_model.predict(get_sequence(msg["Subject"][0], TOKENIZER))
+
+    action_required = intent_score >= 0.5
+
+    return [message, rank, priority, action_required]
