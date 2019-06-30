@@ -6,9 +6,7 @@ import nltk
 import pandas as pd
 
 from sklearn.feature_extraction.text import CountVectorizer
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow import keras
 
 from zippy.pipeline.data import parse_email
 
@@ -18,7 +16,7 @@ INTENT_MODEL = (
 )
 
 VOCABULARY_SIZE = 20000
-TOKENIZER = Tokenizer(num_words=VOCABULARY_SIZE)
+TOKENIZER = keras.preprocessing.text.Tokenizer(num_words=VOCABULARY_SIZE)
 
 try:
     VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
@@ -31,7 +29,7 @@ def get_sequence(message, tokenizer):
     """Return the text as a sequence vector."""
     tokenizer.fit_on_texts([message])
     sequences = tokenizer.texts_to_sequences([message])
-    sequence = pad_sequences(sequences, maxlen=50)
+    sequence = keras.preprocessing.sequence.pad_sequences(sequences, maxlen=50)
     return sequence
 
 
@@ -161,11 +159,7 @@ def rank_message(message, weights=None):
         * float(msg_terms_wt)
     )
 
-    priority = rank > threshold
-
-    intent_model = load_model(INTENT_MODEL)
+    intent_model = keras.models.load_model(INTENT_MODEL)
     intent_score = intent_model.predict(get_sequence(msg["Subject"][0], TOKENIZER))
 
-    action_required = intent_score >= 0.5
-
-    return [message, rank, priority, action_required]
+    return [message, rank, rank > threshold, intent_score > 0.5]
