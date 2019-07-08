@@ -4,7 +4,7 @@
 from setuptools import setup
 
 NAME = "Zippy"
-REQUIRES_PYTHON = ">=3.6.0,<3.7.0"
+REQUIRES_PYTHON = ">=3.6.0,<3.7.5"
 VERSION = 0.1
 
 METADATA = {
