@@ -39,7 +39,7 @@ def test_get_empty_user():
 
 
 def test_get_single_user_without_name():
-    """Test correct user passed without name on EmailAuthUser"""
+    """Test correct user passed without name on EmailAuthUser."""
     fixture_without_name = {
         "users": [{"username": "test@email.com", "password": "password"}]
     }
@@ -53,7 +53,7 @@ def test_get_single_user_without_name():
 
 
 def test_get_single_user_with_name():
-    """Test correct user passed with name on EmailAuthUser"""
+    """Test correct user passed with name on EmailAuthUser."""
     fixture_with_name = {
         "users": [
             {
@@ -179,7 +179,7 @@ def test_retrieving_new_emails_positive_feedback(capsys):
     }
     # patch rank_message. Returns [message, rank, priority]
     with mock.patch(
-        "zippy.client.main.rank_message", return_value=["", 0.5, 2]
+        "zippy.client.main.rank_message", return_value=["", 0.5, True, True]
     ) as mocked_ranker:
         main._retrieve_new_emails(  # pylint: disable=protected-access
             server=server, user=main.EmailAuthUser("test2@email.com", "password")
@@ -190,6 +190,6 @@ def test_retrieving_new_emails_positive_feedback(capsys):
         captured = capsys.readouterr()
         assert (
             # we did not send any message, so, no message on the list. TODO
-            "1 test1@email.com legen\n['', 0.5, 2]\n"
-            "2 test1@email.com dary\n['', 0.5, 2]\n"
+            "1 test1@email.com legen\n['', 0.5, True, True]\n"
+            "2 test1@email.com dary\n['', 0.5, True, True]\n"
         ) in captured.out
