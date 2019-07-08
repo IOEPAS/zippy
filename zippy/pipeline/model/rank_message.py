@@ -162,4 +162,4 @@ def rank_message(message, weights=None):
     intent_model = keras.models.load_model(INTENT_MODEL)
     intent_score = intent_model.predict(get_sequence(msg["Subject"][0], TOKENIZER))
 
-    return [message, rank, rank > threshold, intent_score > 0.5]
+    return [message, rank, rank > threshold, (intent_score > 0.5)[0][0]]
