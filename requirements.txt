@@ -11,7 +11,7 @@ jupyterlab==1.0.1
 kaggle==1.5.4
 mypy==0.711
 pycodestyle==2.5.0
-pydocstyle==3.0.0
+pydocstyle==4.0.0
 pylint==2.3.1
 pytest==5.0.1
 pytest-cov==2.7.1
