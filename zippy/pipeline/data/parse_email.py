@@ -5,7 +5,6 @@ import re
 
 def get_text_from_email(msg):
     """Extract text from message object."""
-
     parts = []
     for part in msg.walk():
         if part.get_content_type() == "text/plain":
@@ -15,7 +14,6 @@ def get_text_from_email(msg):
 
 def get_from_message(message):
     """Parse raw email from message object."""
-
     msg = {}
     keys = message.keys()
     for key in keys:

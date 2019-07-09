@@ -49,7 +49,7 @@ def get_users(client_config) -> List[EmailAuthUser]:
 
 def with_logging(
     func: Optional[Callable] = None, *, logger: Optional[logging.Logger] = None
-) -> Callable:
+) -> Callable:  # noqa: D202
     """Log when ever job is started and completed."""
 
     def decorator_logger(func) -> Callable:
@@ -70,7 +70,7 @@ def with_logging(
 
 def inject_server(
     func: Optional[Callable] = None, *, ssl_context: ssl.SSLContext
-) -> Callable:
+) -> Callable:  # noqa: D202
     """Create server connection each time."""
 
     def decorator_server_inject(func) -> Callable:

@@ -35,7 +35,6 @@ def get_sequence(message, tokenizer):
 
 def load_weights():
     """Load weights from the CSV."""
-
     from_wt = pd.read_csv(SIMPLE_MODEL / "from_weight.csv", index_col=0)
     thread_sender_wt = pd.read_csv(
         SIMPLE_MODEL / "thread_senders_weight.csv", index_col=0
@@ -57,7 +56,6 @@ def load_weights():
 
 def get_weights(search_term, weight_df, term=True):
     """Get weights from thread subject or frequent terms."""
-
     search_term = str(search_term)
     search_length = len(search_term)
     if search_length > 0:
@@ -79,7 +77,6 @@ def get_weights(search_term, weight_df, term=True):
 
 def get_weights_from_sender(message, from_weight):
     """Get weights from email sender."""
-
     from_wt = from_weight[from_weight["From"] == message["From"][0]]
     len_from = len(from_wt)
     if len_from > 0:
@@ -89,7 +86,6 @@ def get_weights_from_sender(message, from_weight):
 
 def get_weights_from_thread(msg, thread_weights, count_vector):
     """Get weights for threads."""
-
     # using senders weights from threads
     senders_weight, thread_weights, thread_term_weights = thread_weights
     senders_wt = senders_weight[senders_weight["From"] == msg["From"][0]]
@@ -117,7 +113,6 @@ def get_weights_from_thread(msg, thread_weights, count_vector):
 
 def get_weights_from_terms(msg, msg_term_weights, count_vector):
     """Get weights from message terms."""
-
     try:
         count_vector.fit_transform(list(msg["content"]))
         msg_terms = count_vector.get_feature_names()
@@ -130,7 +125,6 @@ def get_weights_from_terms(msg, msg_term_weights, count_vector):
 
 def rank_message(message, weights=None):
     """Rank the email and determine if email should be prioritized."""
-
     # load weights if not passed.
     if not weights:
         weights = load_weights()
