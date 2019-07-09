@@ -14,6 +14,7 @@ import schedule
 from imapclient import IMAPClient
 from imapclient.exceptions import LoginError
 
+from zippy.pipeline.model.rank_message import rank_message
 from zippy.utils.config import get_config
 from zippy.utils.log_handler import get_logger
 
@@ -137,6 +138,7 @@ def _retrieve_new_emails(
             for uid, message_data in server.fetch(messages, "RFC822").items():
                 email_message = email.message_from_bytes(message_data[b"RFC822"])
                 print(uid, email_message.get("From"), email_message.get("Subject"))
+                print(rank_message(email_message))
 
 
 if __name__ == "__main__":
