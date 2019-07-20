@@ -9,7 +9,7 @@ isort==4.3.21
 jupyter==1.0.0
 jupyterlab==1.0.1
 kaggle==1.5.4
-mypy==0.711
+mypy==0.720
 pycodestyle==2.5.0
 pydocstyle==4.0.0
 pylint==2.3.1
