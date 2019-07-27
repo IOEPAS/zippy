@@ -151,13 +151,15 @@ def test_retrieving_new_emails_login_error():
         )
 
 
-def test_retrieving_new_emails_positive_feedback(capsys):
+def test_retrieving_new_emails_positive_feedback():
     """Test retrieving new emails."""
     server = TestableIMAPClient()
     server._command_and_check = Mock()  # pylint: disable=protected-access
     server._imap.login = Mock()  # pylint: disable=protected-access
     server.select_folder = Mock()
     server.search = Mock()
+    server.move = Mock()
+    server.create_folder = Mock()
     server.fetch = Mock()
     server.fetch.return_value = {
         "1": {
@@ -179,7 +181,7 @@ def test_retrieving_new_emails_positive_feedback(capsys):
     }
     # patch rank_message. Returns [message, rank, priority]
     with mock.patch(
-        "zippy.client.main.rank_message", return_value=["", 0.5, True, True]
+        "zippy.client.main.rank_message", return_value=["", 0.5, False, False]
     ) as mocked_ranker:
         main._retrieve_new_emails(  # pylint: disable=protected-access
             server=server, user=main.EmailAuthUser("test2@email.com", "password")
@@ -187,9 +189,5 @@ def test_retrieving_new_emails_positive_feedback(capsys):
 
         assert mocked_ranker.call_count == 2
 
-        captured = capsys.readouterr()
-        assert (
-            # we did not send any message, so, no message on the list. TODO
-            "1 test1@email.com legen\n['', 0.5, True, True]\n"
-            "2 test1@email.com dary\n['', 0.5, True, True]\n"
-        ) in captured.out
+        assert server.create_folder.call_count == 2
+        assert server.move.call_count == 2

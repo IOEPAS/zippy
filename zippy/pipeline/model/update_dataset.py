@@ -108,7 +108,7 @@ def update_thread_terms_weights(thread_term_weights, thread_weights, thread_tdm)
             weight = thread_weights.weight[
                 thread_weights.thread.str.contains(term, regex=False)
             ].mean()
-            if isinstance(weight, np.nan):
+            if np.isnan(weight):
                 weight = 1.0
             row = {"term": term, "weight": weight}
             thread_term_weights = thread_term_weights.append(row, ignore_index=True)
