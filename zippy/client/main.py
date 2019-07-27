@@ -12,7 +12,7 @@ from typing import Callable, List, NamedTuple, Optional
 import schedule
 
 from imapclient import IMAPClient
-from imapclient.exceptions import LoginError
+from imapclient.exceptions import IMAPClientError, LoginError
 
 from zippy.pipeline.model.rank_message import rank_message
 from zippy.utils.config import get_config
@@ -112,6 +112,33 @@ def retrieve_new_emails(
     _retrieve_new_emails(server, user, logger)
 
 
+def create_folder_if_not_exists(
+    server: IMAPClient, folder: str, logger: logging.Logger
+):
+    """Create folder if it already exists."""
+    try:
+        server.create_folder(folder)
+    except IMAPClientError:
+        # most likely, it already exists
+        logger.info("Looks like the folder %s already exists.", folder)
+
+
+def shift_mail(server: IMAPClient, uid: str, destination: str, logger: logging.Logger):
+    """Shift mail with given uid to given destination folder."""
+    try:
+        server.move(uid, "Urgent")
+    except IMAPClientError as exc_info:
+        # most likely the folder doesnot exists
+        logger.exception(
+            "Failed email (uid: %s) to move to %s folder: %s",
+            uid,
+            destination,
+            str(exc_info),
+        )
+    else:
+        logger.info("Email (uid: %s) moved to %s folder.", uid, destination)
+
+
 def _retrieve_new_emails(
     server: IMAPClient, user: EmailAuthUser, logger: Optional[logging.Logger] = None
 ) -> None:
@@ -133,12 +160,22 @@ def _retrieve_new_emails(
         else:
             server.select_folder("INBOX", readonly=True)
 
+            create_folder_if_not_exists(server, "Important", logger)
+            create_folder_if_not_exists(server, "Urgent", logger)
+
             messages = server.search("UNSEEN")
             logger.debug("Searching for unseen emails...")
             for uid, message_data in server.fetch(messages, "RFC822").items():
                 email_message = email.message_from_bytes(message_data[b"RFC822"])
-                print(uid, email_message.get("From"), email_message.get("Subject"))
-                print(rank_message(email_message))
+                priority, urgent = rank_message(email_message)[-2:]
+                if not priority and not urgent:
+                    shift_mail(
+                        server=server, uid=uid, destination="Important", logger=logger
+                    )
+                elif priority and not urgent:
+                    shift_mail(
+                        server=server, uid=uid, destination="Urgent", logger=logger
+                    )
 
 
 if __name__ == "__main__":
