@@ -9,7 +9,6 @@ from sklearn.feature_extraction.text import CountVectorizer
 from tensorflow import keras
 
 from zippy.pipeline.data import parse_email
-from zippy.pipeline.model.update_dataset import online_training
 
 SIMPLE_MODEL = pathlib.Path(__file__).parents[3] / "output/models/simplerank"
 INTENT_MODEL = (
@@ -156,6 +155,5 @@ def rank_message(message, weights=None):
 
     intent_model = keras.models.load_model(INTENT_MODEL)
     intent_score = intent_model.predict(get_sequence(msg["Subject"][0], TOKENIZER))
-    online_training(msg, rank, rank > threshold, (intent_score > 0.5)[0][0])
 
-    return [message, rank, rank > threshold, (intent_score > 0.5)[0][0]]
+    return [msg, rank, rank > threshold, (intent_score > 0.5)[0][0]]

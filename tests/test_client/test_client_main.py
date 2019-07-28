@@ -180,14 +180,16 @@ def test_retrieving_new_emails_positive_feedback():
         },
     }
     # patch rank_message. Returns [message, rank, priority]
-    with mock.patch(
-        "zippy.client.main.rank_message", return_value=["", 0.5, False, False]
-    ) as mocked_ranker:
-        main._retrieve_new_emails(  # pylint: disable=protected-access
-            server=server, user=main.EmailAuthUser("test2@email.com", "password")
-        )
+    with mock.patch("zippy.client.main.online_training") as online_training_mocked:
+        with mock.patch(
+            "zippy.client.main.rank_message", return_value=["", 0.5, False, False]
+        ) as mocked_ranker:
+            main._retrieve_new_emails(  # pylint: disable=protected-access
+                server=server, user=main.EmailAuthUser("test2@email.com", "password")
+            )
 
-        assert mocked_ranker.call_count == 2
+            assert mocked_ranker.call_count == 2
 
-        assert server.create_folder.call_count == 2
-        assert server.move.call_count == 2
+            assert server.create_folder.call_count == 2
+            assert server.move.call_count == 2
+            assert online_training_mocked.call_count == 2

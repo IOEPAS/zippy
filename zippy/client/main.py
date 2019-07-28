@@ -15,6 +15,7 @@ from imapclient import IMAPClient
 from imapclient.exceptions import IMAPClientError, LoginError
 
 from zippy.pipeline.model.rank_message import rank_message
+from zippy.pipeline.model.update_dataset import online_training
 from zippy.utils.config import get_config
 from zippy.utils.log_handler import get_logger
 
@@ -182,22 +183,22 @@ def _retrieve_new_emails(
                 unprocessed_messages, "RFC822"
             ).items():
                 email_message = email.message_from_bytes(message_data[b"RFC822"])
-                rank, priority, urgent = rank_message(email_message)[-3:]
+                msg, rank, priority, intent = rank_message(email_message)
                 logger.info(
                     "Rank: %s, Priority: %s, Urgent: %s, Subject: %s",
                     rank,
                     priority,
-                    urgent,
+                    intent,
                     email_message[""],
                 )
-                if not priority and not urgent:
+                if not priority and not intent:
                     shift_mail(
                         server=server,
                         uid=uid,
                         destination=EmailFolder.IMPORTANT,
                         logger=logger,
                     )
-                elif priority and not urgent:
+                elif priority and not intent:
                     shift_mail(
                         server=server,
                         uid=uid,
@@ -207,6 +208,9 @@ def _retrieve_new_emails(
                 else:
                     # add flags to not check the emails again
                     server.add_flags(uid, FLAG_TO_CHECK)
+
+                # update weights afterwards
+                online_training(msg, rank, priority, intent)
 
 
 if __name__ == "__main__":
