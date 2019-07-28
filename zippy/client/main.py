@@ -36,6 +36,16 @@ class EmailAuthUser(NamedTuple):
         return self.email_address
 
 
+class EmailFolder:
+    """Constants for email folder."""
+
+    IMPORTANT: str = "Important"
+    URGENT: str = "Urgent"
+
+
+FLAG_TO_CHECK: bytes = b"processed"
+
+
 def get_users(client_config) -> List[EmailAuthUser]:
     """Create users from list."""
     users_list = client_config.get("users")
@@ -126,7 +136,7 @@ def create_folder_if_not_exists(
 def shift_mail(server: IMAPClient, uid: str, destination: str, logger: logging.Logger):
     """Shift mail with given uid to given destination folder."""
     try:
-        server.move(uid, "Urgent")
+        server.move(uid, destination)
     except IMAPClientError as exc_info:
         # most likely the folder doesnot exists
         logger.exception(
@@ -160,22 +170,43 @@ def _retrieve_new_emails(
         else:
             server.select_folder("INBOX", readonly=True)
 
-            create_folder_if_not_exists(server, "Important", logger)
-            create_folder_if_not_exists(server, "Urgent", logger)
+            create_folder_if_not_exists(server, EmailFolder.IMPORTANT, logger)
+            create_folder_if_not_exists(server, EmailFolder.URGENT, logger)
 
-            messages = server.search("UNSEEN")
-            logger.debug("Searching for unseen emails...")
-            for uid, message_data in server.fetch(messages, "RFC822").items():
+            search_key = b"UNSEEN UNKEYWORD" + FLAG_TO_CHECK
+
+            logger.debug("Searching for unseen emails flagged '%s'", FLAG_TO_CHECK)
+            unprocessed_messages: list = server.search(search_key)
+
+            for uid, message_data in server.fetch(
+                unprocessed_messages, "RFC822"
+            ).items():
                 email_message = email.message_from_bytes(message_data[b"RFC822"])
-                priority, urgent = rank_message(email_message)[-2:]
+                rank, priority, urgent = rank_message(email_message)[-3:]
+                logger.info(
+                    "Rank: %s, Priority: %s, Urgent: %s, Subject: %s",
+                    rank,
+                    priority,
+                    urgent,
+                    email_message[""],
+                )
                 if not priority and not urgent:
                     shift_mail(
-                        server=server, uid=uid, destination="Important", logger=logger
+                        server=server,
+                        uid=uid,
+                        destination=EmailFolder.IMPORTANT,
+                        logger=logger,
                     )
                 elif priority and not urgent:
                     shift_mail(
-                        server=server, uid=uid, destination="Urgent", logger=logger
+                        server=server,
+                        uid=uid,
+                        destination=EmailFolder.URGENT,
+                        logger=logger,
                     )
+                else:
+                    # add flags to not check the emails again
+                    server.add_flags(uid, FLAG_TO_CHECK)
 
 
 if __name__ == "__main__":
