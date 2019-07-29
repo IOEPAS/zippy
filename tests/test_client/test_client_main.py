@@ -136,7 +136,7 @@ def test_with_logging():
 
 
 def test_retrieving_new_emails_login_error():
-    """Test login error for IMAPClient."""
+    """No error shoudl come for Login Error."""
     server = TestableIMAPClient()
     server._imap.login = Mock()  # pylint: disable=protected-access
     server._imap.login.return_value = (  # pylint: disable=protected-access
@@ -145,6 +145,6 @@ def test_retrieving_new_emails_login_error():
     )
 
     with pytest.raises(LoginError):
-        main._retrieve_new_emails(  # pylint: disable=protected-access
+        main.retrieve_new_emails(  # pylint: disable=protected-access
             server=server, user=main.EmailAuthUser("test0@email.com", "password")
         )

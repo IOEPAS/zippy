@@ -7,8 +7,9 @@ import socket
 import ssl
 import time
 
-from typing import Callable, List, NamedTuple, Optional
+from typing import Callable, Dict, List, NamedTuple, Optional
 
+import pandas as pd
 import schedule
 
 from imapclient import IMAPClient
@@ -18,9 +19,6 @@ from zippy.pipeline.model.rank_message import rank_message
 from zippy.pipeline.model.update_dataset import online_training
 from zippy.utils.config import get_config
 from zippy.utils.log_handler import get_logger
-
-SSL_CONTEXT = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-SSL_CONTEXT.verify_flags = ssl.CERT_OPTIONAL
 
 
 class EmailAuthUser(NamedTuple):
@@ -43,6 +41,15 @@ class EmailFolders:
     IMPORTANT: str = "Important"
     URGENT: str = "Urgent"
     INBOX: str = "INBOX"
+
+
+class ProcessedMessage(NamedTuple):
+    """Container to hold processed message."""
+
+    msg: pd.DataFrame
+    rank: float
+    important: bool
+    intent: bool
 
 
 CLIENT: str = "client"
@@ -83,48 +90,26 @@ def with_logging(
     return decorator_logger
 
 
-def inject_server(
-    func: Optional[Callable] = None, *, ssl_context: ssl.SSLContext
-) -> Callable:  # noqa: D202
-    """Create server connection each time."""
-
-    def decorator_server_inject(func) -> Callable:
-        @functools.wraps(func)
-        def wrapper_server_inject(*args, **kwargs):
-            config = get_config(CLIENT)
-            logger = get_logger(CLIENT)
-            try:
-                server = IMAPClient(
-                    config["hostname"],
-                    port=config["imap_port"],
-                    ssl=config.get("ssl", True),
-                    ssl_context=ssl_context,
-                    timeout=config.get("timeout", 10),
-                )
-            except socket.error:
-                logger.exception("Could not connect to the mail server.")
-            except ssl.SSLError:
-                logger.exception("Error due to ssl.")
-                raise
-            else:
-                logger.debug("Mail server created.")
-                return func(server, *args, **kwargs)
-
-        return wrapper_server_inject
-
-    if func is None:
-        return decorator_server_inject
-
-    return decorator_server_inject(func)
-
-
-@with_logging
-@inject_server(ssl_context=SSL_CONTEXT)
-def retrieve_new_emails(
-    server: IMAPClient, user: EmailAuthUser, logger: Optional[logging.Logger] = None
-) -> None:
-    """Retrieve new emails (user api)."""
-    _retrieve_new_emails(server, user, logger)
+def get_server(config: dict, logger: logging.Logger) -> IMAPClient:
+    """Return server."""
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+    ssl_context.verify_flags = ssl.CERT_OPTIONAL
+    try:
+        server = IMAPClient(
+            config["hostname"],
+            port=config["imap_port"],
+            ssl=config.get("ssl", True),
+            ssl_context=ssl_context,
+            timeout=config.get("timeout", 10),
+        )
+    except socket.error:
+        logger.exception("Could not connect to the mail server.")
+        raise
+    except ssl.SSLError:
+        logger.exception("Error due to ssl.")
+        raise
+    else:
+        return server
 
 
 def create_folder_if_not_exists(
@@ -138,7 +123,7 @@ def create_folder_if_not_exists(
         logger.info("Looks like the folder %s already exists.", folder)
 
 
-def shift_mail(server: IMAPClient, uid: str, destination: str, logger: logging.Logger):
+def shift_mail(server: IMAPClient, uid: int, destination: str, logger: logging.Logger):
     """Shift mail with given uid to given destination folder."""
     try:
         server.move(uid, destination)
@@ -154,96 +139,125 @@ def shift_mail(server: IMAPClient, uid: str, destination: str, logger: logging.L
         logger.info("Email (uid: %s) moved to %s folder.", uid, destination)
 
 
-def mark_processed(server: IMAPClient, uid: str, logger: logging.Logger):
+def mark_processed(server: IMAPClient, uid: int, logger: logging.Logger):
     """Add flags to not check the emails again."""
-    server.add_flags(uid, FLAG_TO_CHECK)
+    # imap: IMAP4_stream = server._imap
+    # imap.uid("STORE", str(uid), "+FLAGS", f"({FLAG_TO_CHECK})")
     # `add_flags` returns new flags added, but if they are already there
     # it doesnot returns empty. So, confirm via `get_flags`.
+    flag = b"processed"
     flags = server.get_flags(uid)
     logger.info("Result: %s, %s", flags, uid)
     if uid not in flags:
         logger.warn("Mail with uid: %s does not exist", uid)
         return
-    if FLAG_TO_CHECK not in flags.get(uid):
-        logger.warn(
-            "Mail (uid: %s) could not added " "Weights might get updated twice", uid
-        )
-        return
-
-    logger.info("Flag added to %s", uid)
+    if flag not in flags.get(uid):
+        flags = server.add_flags(uid, flag)
+        if uid not in flags:
+            logger.warn(
+                "Mail (uid: %s) could not added " "Weights might get updated twice", uid
+            )
+        else:
+            logger.info("Flag added to %s", uid)
 
 
 def process_mail(
-    server: IMAPClient, uid: str, message_data: dict, logger: logging.Logger
-):
+    server: IMAPClient, uid: int, message_data: dict, logger: logging.Logger
+) -> ProcessedMessage:
     """Process mail."""
     email_message = email.message_from_bytes(message_data[MESSAGE_FORMAT])
-    msg, rank, priority, intent = rank_message(email_message)
+    msg = rank_message(email_message)
+    processed_msg = ProcessedMessage(*msg)
     logger.info(
-        "Rank: %s, Priority: %s, Urgent: %s, Subject: %s",
-        rank,
-        priority,
-        intent,
+        "Rank: %s, Important: %s, Intent: %s, Subject: %s",
+        processed_msg.rank,
+        processed_msg.important,
+        processed_msg.intent,
         email_message["subject"],
     )
-    if priority and not intent:
+    if processed_msg.important and not processed_msg.intent:
         shift_mail(
             server=server, uid=uid, destination=EmailFolders.IMPORTANT, logger=logger
         )
-    elif priority and intent:
+    elif processed_msg.important and processed_msg.intent:
         shift_mail(
             server=server, uid=uid, destination=EmailFolders.URGENT, logger=logger
         )
-    else:
-        mark_processed(server=server, uid=uid, logger=logger)
 
-    # update weights afterwards
-    online_training(msg, rank, priority, intent)
+    mark_processed(server=server, uid=uid, logger=logger)
+
+    return processed_msg
 
 
-def process_mails(server: IMAPClient, uids: List[str], logger: logging.Logger):
+def process_mails(
+    server: IMAPClient, uids: List[int], logger: logging.Logger
+) -> Dict[int, ProcessedMessage]:
     """Retrieve all mails and process them, one by one."""
+    processed_msgs: Dict[int, ProcessedMessage] = {}
     for uid, message_data in server.fetch(uids, MESSAGE_FORMAT).items():
-        process_mail(server, uid, message_data, logger)
+        processed_msgs[uid] = process_mail(server, uid, message_data, logger)
+
+    return processed_msgs
 
 
-def _retrieve_new_emails(
+def retrieve_new_emails(
     server: IMAPClient, user: EmailAuthUser, logger: Optional[logging.Logger] = None
-) -> None:
+) -> List[int]:
     """Retrieve new unseen emails for the user."""
     logger = logger or get_logger(CLIENT)
+    mails: List[int] = []
+    try:
+        server.login(user.email_address, user.password)
+        logger.info("Logged in successful for %s", user)
+    except LoginError:
+        logger.exception(
+            "Credentials could not be verified for '%s'.", user.email_address
+        )
+        server.shutdown()
+        raise
+    except socket.error:
+        logger.exception("Could not connect to the mail server.")
+        server.shutdown()
+        raise
+    except Exception as exc_info:  # pylint: disable=broad-except
+        logger.exception("Unknown Exception occured. %s", str(exc_info))
+        raise
+    else:
+        server.select_folder(EmailFolders.INBOX, readonly=True)
+
+        create_folder_if_not_exists(server, EmailFolders.IMPORTANT, logger)
+        create_folder_if_not_exists(server, EmailFolders.URGENT, logger)
+
+        search_key = b"UNSEEN UNKEYWORD " + FLAG_TO_CHECK
+
+        logger.debug("Searching for unseen emails flagged '%s'", FLAG_TO_CHECK)
+        mails = server.search(search_key)
+
+    return mails
+
+
+def online_train_all(processed_messages: Dict[int, ProcessedMessage]):
+    """Update weights from processed messages."""
+    for _, train_args in processed_messages.items():
+        online_training(*train_args)
+
+
+@with_logging
+def main(config: dict, user: EmailAuthUser, logger: Optional[logging.Logger] = None):
+    """Handle all updates for a specific users."""
+    logger = logger or get_logger(CLIENT)
+    server = get_server(config, logger=logger)
     with server:
-        try:
-            server.login(user.email_address, user.password)
-            logger.info("Logged in successful for %s", user)
-        except LoginError:
-            logger.exception(
-                "Credentials could not be verified for '%s'.", user.email_address
-            )
-            server.shutdown()
-            raise
-        except socket.error:
-            logger.exception("Could not connect to the mail server.")
-            server.shutdown()
-        else:
-            server.select_folder(EmailFolders.INBOX, readonly=True)
-
-            create_folder_if_not_exists(server, EmailFolders.IMPORTANT, logger)
-            create_folder_if_not_exists(server, EmailFolders.URGENT, logger)
-
-            search_key = b"UNSEEN UNKEYWORD " + FLAG_TO_CHECK
-
-            logger.debug("Searching for unseen emails flagged '%s'", FLAG_TO_CHECK)
-            unprocessed_messages: list = server.search(search_key)
-
-            process_mails(server, unprocessed_messages, logger)
+        unprocessed_mails = retrieve_new_emails(server, user, logger)
+        processed_messages = process_mails(server, unprocessed_mails, logger)
+        online_train_all(processed_messages)
 
 
 if __name__ == "__main__":
-    for email_user in get_users(get_config(CLIENT)):
-        schedule.every(10).seconds.do(
-            retrieve_new_emails, email_user, get_logger(CLIENT)
-        )
+    CLIENT_CONFIG = get_config(CLIENT)
+    CLIENT_LOGGER = get_logger(CLIENT)
+    for email_user in get_users(CLIENT_CONFIG):
+        schedule.every(10).seconds.do(main, CLIENT_CONFIG, email_user, CLIENT_LOGGER)
 
     while True:
         schedule.run_pending()
