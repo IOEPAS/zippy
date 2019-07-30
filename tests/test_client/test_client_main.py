@@ -1,12 +1,9 @@
 """Test client for main client."""
 import logging
 
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, call
 
 import pytest
-
-from imapclient.exceptions import LoginError
-from imapclient.testable_imapclient import TestableIMAPClient
 
 from zippy.client import main
 
@@ -133,18 +130,3 @@ def test_with_logging():
 
     assert mocked_logger.info.call_args_list == calls
     assert mocked_logger.info.call_count == 2
-
-
-def test_retrieving_new_emails_login_error():
-    """No error shoudl come for Login Error."""
-    server = TestableIMAPClient()
-    server._imap.login = Mock()  # pylint: disable=protected-access
-    server._imap.login.return_value = (  # pylint: disable=protected-access
-        "BAD",
-        [b"Something's wrong"],
-    )
-
-    with pytest.raises(LoginError):
-        main.retrieve_new_emails(  # pylint: disable=protected-access
-            server=server, user=main.EmailAuthUser("test0@email.com", "password")
-        )

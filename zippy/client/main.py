@@ -90,10 +90,19 @@ def with_logging(
     return decorator_logger
 
 
-def get_server(config: dict, logger: logging.Logger) -> IMAPClient:
+def get_server(
+    config: dict,
+    logger: logging.Logger,
+    protocol=ssl.PROTOCOL_SSLv23,
+    verify_cert: bool = False,
+) -> IMAPClient:
     """Return server."""
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-    ssl_context.verify_flags = ssl.CERT_OPTIONAL
+    ssl_context = ssl.SSLContext(protocol)
+    if not verify_cert:
+        ssl_context.verify_flags = ssl.CERT_OPTIONAL
+    else:
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+
     try:
         server = IMAPClient(
             config["hostname"],
@@ -102,11 +111,11 @@ def get_server(config: dict, logger: logging.Logger) -> IMAPClient:
             ssl_context=ssl_context,
             timeout=config.get("timeout", 10),
         )
-    except socket.error:
-        logger.exception("Could not connect to the mail server.")
-        raise
     except ssl.SSLError:
         logger.exception("Error due to ssl.")
+        raise
+    except socket.error:
+        logger.exception("Could not connect to the mail server.")
         raise
     else:
         return server
@@ -221,6 +230,7 @@ def retrieve_new_emails(
         raise
     except Exception as exc_info:  # pylint: disable=broad-except
         logger.exception("Unknown Exception occured. %s", str(exc_info))
+        server.shutdown()
         raise
     else:
         server.select_folder(EmailFolders.INBOX, readonly=True)
@@ -243,10 +253,15 @@ def online_train_all(processed_messages: Dict[int, ProcessedMessage]):
 
 
 @with_logging
-def main(config: dict, user: EmailAuthUser, logger: Optional[logging.Logger] = None):
+def main(
+    config: dict,
+    user: EmailAuthUser,
+    server: Optional[IMAPClient] = None,
+    logger: Optional[logging.Logger] = None,
+):
     """Handle all updates for a specific users."""
     logger = logger or get_logger(CLIENT)
-    server = get_server(config, logger=logger)
+    server = server or get_server(config, logger=logger)
     with server:
         unprocessed_mails = retrieve_new_emails(server, user, logger)
         processed_messages = process_mails(server, unprocessed_mails, logger)
@@ -255,9 +270,8 @@ def main(config: dict, user: EmailAuthUser, logger: Optional[logging.Logger] = N
 
 if __name__ == "__main__":
     CLIENT_CONFIG = get_config(CLIENT)
-    CLIENT_LOGGER = get_logger(CLIENT)
     for email_user in get_users(CLIENT_CONFIG):
-        schedule.every(10).seconds.do(main, CLIENT_CONFIG, email_user, CLIENT_LOGGER)
+        schedule.every(10).seconds.do(main, CLIENT_CONFIG, email_user)
 
     while True:
         schedule.run_pending()
