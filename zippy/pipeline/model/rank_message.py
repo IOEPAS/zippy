@@ -1,6 +1,8 @@
 """Module to apply the rank algorithm to emails."""
 
+import os
 import pathlib
+import pickle
 
 import nltk
 import numpy as np
@@ -11,19 +13,59 @@ from tensorflow import keras
 
 from zippy.pipeline.data import parse_email
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 SIMPLE_MODEL = pathlib.Path(__file__).parents[3] / "output/models/simplerank"
 INTENT_MODEL = (
-    pathlib.Path(__file__).parents[3] / "output/models/intent/intent-model-lstm.h5"
+    pathlib.Path(__file__).parents[3] / "output/models/intent/intent-bi-lstm-highest.h5"
 )
 
-VOCABULARY_SIZE = 20000
-TOKENIZER = keras.preprocessing.text.Tokenizer(num_words=VOCABULARY_SIZE)
+with open(INTENT_MODEL.parents[0] / "tokenizer.pickle", "rb") as handle:
+    TOKENIZER = pickle.load(handle)
 
 try:
     VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
 except LookupError:
     nltk.download("stopwords")
     VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
+
+
+def create_user_model(user):
+    """Initialize directory and user models for given user."""
+    user_model_dir = SIMPLE_MODEL / user
+    user_model_dir.mkdir()
+
+    from_wt = pd.DataFrame(columns=["From", "weight"])
+    from_wt.to_csv(user_model_dir / "from_weight.csv", index=False)
+
+    thread_sender_wt = pd.DataFrame(columns=["From", "freq", "weight"])
+    thread_sender_wt.to_csv(user_model_dir / "thread_senders_weight.csv", index=False)
+
+    thread_wt = pd.DataFrame(
+        columns=["freq", "time_span", "weight", "min_time", "thread"]
+    )
+    thread_wt.to_csv(user_model_dir / "thread_weights.csv", index=False)
+
+    thread_term_wt = pd.DataFrame(columns=["term", "weight"])
+    thread_term_wt.to_csv(user_model_dir / "thread_term_weights.csv", index=False)
+
+    msg_term_wt = pd.DataFrame(columns=["freq", "term", "weight"])
+    msg_term_wt.to_csv(user_model_dir / "msg_terms_weight.csv", index=False)
+
+    previous_ranks = pd.DataFrame(
+        columns=["date", "from", "rank", "subject", "priority", "intent"]
+    )
+    previous_ranks.to_csv(user_model_dir / "rank_df.csv", index=False)
+    threshold = 0
+
+    return (
+        from_wt,
+        thread_sender_wt,
+        thread_wt,
+        thread_term_wt,
+        msg_term_wt,
+        threshold,
+    )
 
 
 def get_sequence(message, tokenizer):
@@ -34,16 +76,14 @@ def get_sequence(message, tokenizer):
     return sequence
 
 
-def load_weights():
+def load_weights(user: str = "global"):
     """Load weights from the CSV."""
-    from_wt = pd.read_csv(SIMPLE_MODEL / "from_weight.csv", index_col=0)
-    thread_sender_wt = pd.read_csv(
-        SIMPLE_MODEL / "thread_senders_weight.csv", index_col=0
-    )
-    thread_wt = pd.read_csv(SIMPLE_MODEL / "thread_weights.csv", index_col=0)
-    thread_term_wt = pd.read_csv(SIMPLE_MODEL / "thread_term_weights.csv", index_col=0)
-    msg_term_wt = pd.read_csv(SIMPLE_MODEL / "msg_terms_weight.csv", index_col=0)
-    previous_ranks = pd.read_csv(SIMPLE_MODEL / "rank_df.csv", index_col=0)
+    from_wt = pd.read_csv(SIMPLE_MODEL / user / "from_weight.csv")
+    thread_sender_wt = pd.read_csv(SIMPLE_MODEL / user / "thread_senders_weight.csv")
+    thread_wt = pd.read_csv(SIMPLE_MODEL / user / "thread_weights.csv")
+    thread_term_wt = pd.read_csv(SIMPLE_MODEL / user / "thread_term_weights.csv")
+    msg_term_wt = pd.read_csv(SIMPLE_MODEL / user / "msg_terms_weight.csv")
+    previous_ranks = pd.read_csv(SIMPLE_MODEL / user / "rank_df.csv")
     threshold = previous_ranks["rank"].median()
     return (
         from_wt,
@@ -124,13 +164,21 @@ def get_weights_from_terms(msg, msg_term_weights, count_vector):
     return msg_terms_wt
 
 
-def rank_message(message, weights=None):  # pylint: disable=too-many-locals
-    """Rank the email and determine if email should be prioritized."""
+def calculate_rank(msg, weights=None):
+    """Calculate the rank score."""
     # load weights if not passed.
     if not weights:
-        weights = load_weights()
+        if (SIMPLE_MODEL / msg["To"][0]).exists():
+            weights = load_weights(msg["To"][0])
+        else:
+            weights = create_user_model(msg["To"][0])
+        print("user weights")
+    elif weights == "global":
+        weights = load_weights("global")
+        print("global weights")
+    else:
+        weights = weights
 
-    msg = pd.DataFrame(parse_email.get_from_message(message))
     msg["Date"] = pd.to_datetime(msg["Date"], infer_datetime_format=True)
     from_weight, *threads, msg_term_weights, threshold = weights
     # First, using the from weights
@@ -153,6 +201,31 @@ def rank_message(message, weights=None):  # pylint: disable=too-many-locals
         * float(msg_thread_term_wt)
         * float(msg_terms_wt)
     )
+    print(
+        "Weights are from: {0},\n\tthread_from: {1},\n\tthread: {2}, \n\tthread_term: {3}, \n\tmsg_term: {4}".format(
+            msg_from_wt,
+            msg_thread_from_wt,
+            msg_thread_activity_wt,
+            msg_thread_term_wt,
+            msg_terms_wt,
+        )
+    )
+
+    return [rank, threshold]
+
+
+def rank_message(message):
+    """Rank the email and determine if email should be prioritized."""
+    msg = pd.DataFrame(parse_email.get_from_message(message))
+
+    user_model_rank, user_model_threshold = calculate_rank(msg)
+    global_model_rank, global_model_threshold = calculate_rank(msg, weights="global")
+
+    rank = 0.9 * user_model_rank + 0.1 * global_model_rank
+
+    threshold = 0.9 * user_model_threshold + 0.1 * global_model_threshold
+
+    # rank = 1 / (1 + np.exp(-weighted_rank/weighted_threshold))
 
     intent_model = keras.models.load_model(INTENT_MODEL)
 
