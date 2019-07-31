@@ -3,6 +3,7 @@
 import pathlib
 
 import nltk
+import numpy as np
 import pandas as pd
 
 from sklearn.feature_extraction.text import CountVectorizer
@@ -123,7 +124,7 @@ def get_weights_from_terms(msg, msg_term_weights, count_vector):
     return msg_terms_wt
 
 
-def rank_message(message, weights=None):
+def rank_message(message, weights=None):  # pylint: disable=too-many-locals
     """Rank the email and determine if email should be prioritized."""
     # load weights if not passed.
     if not weights:
@@ -154,6 +155,12 @@ def rank_message(message, weights=None):
     )
 
     intent_model = keras.models.load_model(INTENT_MODEL)
-    intent_score = intent_model.predict(get_sequence(msg["Subject"][0], TOKENIZER))
 
-    return [msg, rank, rank > threshold, (intent_score > 0.5)[0][0]]
+    content: str = msg["content"][0]
+
+    parts = (*content.splitlines(), msg["Subject"][0])
+    intent_score = intent_model.predict(
+        [get_sequence(part, TOKENIZER) for part in parts]
+    )
+
+    return [msg, rank, rank > threshold, np.mean(intent_score) > 0.5]
