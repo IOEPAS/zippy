@@ -38,8 +38,8 @@ class EmailAuthUser(NamedTuple):
 class EmailFolders:
     """Constants for email folder."""
 
-    IMPORTANT: str = "Important"
-    URGENT: str = "Urgent"
+    IMPORTANT: str = "INBOX.Important"
+    URGENT: str = "INBOX.Urgent"
     INBOX: str = "INBOX"
 
 
@@ -150,18 +150,14 @@ def shift_mail(server: IMAPClient, uid: int, destination: str, logger: logging.L
 
 def mark_processed(server: IMAPClient, uid: int, logger: logging.Logger):
     """Add flags to not check the emails again."""
-    # imap: IMAP4_stream = server._imap
-    # imap.uid("STORE", str(uid), "+FLAGS", f"({FLAG_TO_CHECK})")
-    # `add_flags` returns new flags added, but if they are already there
-    # it doesnot returns empty. So, confirm via `get_flags`.
-    flag = b"processed"
+    server.select_folder(EmailFolders.INBOX)
     flags = server.get_flags(uid)
-    logger.info("Result: %s, %s", flags, uid)
+
     if uid not in flags:
         logger.warn("Mail with uid: %s does not exist", uid)
         return
-    if flag not in flags.get(uid):
-        flags = server.add_flags(uid, flag)
+    if FLAG_TO_CHECK not in flags.get(uid):
+        flags = server.add_flags(uid, FLAG_TO_CHECK)
         if uid not in flags:
             logger.warn(
                 "Mail (uid: %s) could not added " "Weights might get updated twice", uid
@@ -178,11 +174,12 @@ def process_mail(
     msg = rank_message(email_message)
     processed_msg = ProcessedMessage(*msg)
     logger.info(
-        "Rank: %s, Important: %s, Intent: %s, Subject: %s",
+        "Rank: %s, Important: %s, Intent: %s, Subject: %s, UID: %s",
         processed_msg.rank,
         processed_msg.important,
         processed_msg.intent,
         email_message["subject"],
+        uid,
     )
     if processed_msg.important and not processed_msg.intent:
         shift_mail(
@@ -192,8 +189,8 @@ def process_mail(
         shift_mail(
             server=server, uid=uid, destination=EmailFolders.URGENT, logger=logger
         )
-
-    mark_processed(server=server, uid=uid, logger=logger)
+    else:
+        mark_processed(server=server, uid=uid, logger=logger)
 
     return processed_msg
 
@@ -202,6 +199,7 @@ def process_mails(
     server: IMAPClient, uids: List[int], logger: logging.Logger
 ) -> Dict[int, ProcessedMessage]:
     """Retrieve all mails and process them, one by one."""
+    server.select_folder(EmailFolders.INBOX)
     processed_msgs: Dict[int, ProcessedMessage] = {}
     for uid, message_data in server.fetch(uids, MESSAGE_FORMAT).items():
         processed_msgs[uid] = process_mail(server, uid, message_data, logger)
@@ -233,12 +231,13 @@ def retrieve_new_emails(
         server.shutdown()
         raise
     else:
-        server.select_folder(EmailFolders.INBOX, readonly=True)
 
         create_folder_if_not_exists(server, EmailFolders.IMPORTANT, logger)
         create_folder_if_not_exists(server, EmailFolders.URGENT, logger)
 
         search_key = b"UNSEEN UNKEYWORD " + FLAG_TO_CHECK
+
+        server.select_folder(EmailFolders.INBOX, readonly=True)
 
         logger.debug("Searching for unseen emails flagged '%s'", FLAG_TO_CHECK)
         mails = server.search(search_key)

@@ -3,7 +3,9 @@ import os
 import smtplib
 import socket
 import ssl
+import time
 
+from typing import Callable, List
 from unittest import mock
 
 import pytest
@@ -12,6 +14,7 @@ from imapclient import IMAPClient
 from imapclient.exceptions import LoginError
 
 from zippy.client.main import (
+    FLAG_TO_CHECK,
     MESSAGE_FORMAT,
     EmailAuthUser,
     EmailFolders,
@@ -68,33 +71,39 @@ def imap_client(config: dict, logger):
         pass
 
 
-def test_get_server_ssl_error(config: dict, logger, caplog):
-    config["ssl"] = True
-    with pytest.raises(ssl.SSLError):
-        get_server(config, logger, protocol=ssl.PROTOCOL_TLS, verify_cert=True)
-
-    assert "Error due to ssl." in caplog.text
+@pytest.fixture(autouse=True)
+def create_required_folders(logged_in_client: IMAPClient, logger):
+    create_folder_if_not_exists(logged_in_client, EmailFolders.IMPORTANT, logger)
+    create_folder_if_not_exists(logged_in_client, EmailFolders.URGENT, logger)
 
 
 @pytest.fixture
 def random_mail(logged_in_client: IMAPClient, config):
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
     ssl_context.verify_flags = ssl.CERT_OPTIONAL
+
+    # send message
     server: smtplib.SMTP = smtplib.SMTP(config["hostname"], config["smtp_port"])
     if config["ssl"]:
         server.starttls(context=ssl_context)
+
+    next_uid = logged_in_client.select_folder("INBOX").get(b"UIDNEXT")
     server.login("test0@localhost.org", "test0")
-    message = """\
-        Subject: Hi there
+    message = """\\
+    Subject: Hi there
 
     This message is sent from Python."""
     server.sendmail("test0@localhost.org", "test1@localhost.org", message)
 
-    logged_in_client.select_folder(EmailFolders.INBOX)
+    wait_till_mail_appears(logged_in_client, uid=next_uid)
 
-    uid = logged_in_client.search("ALL")[-1]
-    yield uid
-    logged_in_client.delete_messages(uid)
+    logged_in_client.remove_flags(next_uid, "\\Seen")
+
+    yield next_uid
+
+    logged_in_client.select_folder(EmailFolders.INBOX)
+    logged_in_client.delete_messages(next_uid)
+    logged_in_client.expunge()
 
 
 @pytest.fixture
@@ -112,8 +121,8 @@ def logged_in_client(config, logger):
 
 @pytest.fixture
 def flagged_random_mail(logged_in_client: IMAPClient, random_mail):
-    logged_in_client.add_flags(random_mail, b"processed")
-    assert b"processed" in logged_in_client.get_flags(random_mail).get(random_mail)
+    logged_in_client.add_flags(random_mail, FLAG_TO_CHECK)
+    assert FLAG_TO_CHECK in logged_in_client.get_flags(random_mail).get(random_mail)
     yield random_mail
 
 
@@ -133,18 +142,37 @@ def random_folder(logged_in_client: IMAPClient):
 
 @pytest.fixture
 def teardown(logged_in_client: IMAPClient):
-    teardowns = []
+    teardowns: List[Callable] = []
 
     yield teardowns
 
     for func in teardowns:
-        for i in range(2):
+        for _ in range(2):
             try:
                 func(logged_in_client)
             except socket.timeout:
                 pass
             else:
                 break
+
+
+def wait_till_mail_appears(client: IMAPClient, uid, timeout=10):
+    entry_time = time.time()
+    while True:
+        if client.fetch(uid, MESSAGE_FORMAT):
+            break
+        if (time.time() - entry_time) > timeout:
+            print(f"Waited for {timeout}. Could not find {uid}")
+            assert False
+        time.sleep(1)
+
+
+def test_get_server_ssl_error(config: dict, logger, caplog):
+    config["ssl"] = True
+    with pytest.raises(ssl.SSLError):
+        get_server(config, logger, protocol=ssl.PROTOCOL_TLS, verify_cert=True)
+
+    assert "Error due to ssl." in caplog.text
 
 
 def test_get_server_socket_error(config: dict, logger, caplog):
@@ -155,45 +183,46 @@ def test_get_server_socket_error(config: dict, logger, caplog):
     assert "Could not connect to the mail server." in caplog.text
 
 
-def test_flag_happy_path(
-    logged_in_client: IMAPClient, random_mail, logger, caplog, teardown
-):
+def test_flag_happy_path(logged_in_client: IMAPClient, random_mail, logger, caplog):
     mark_processed(logged_in_client, random_mail, logger)
 
     assert random_mail in logged_in_client.get_flags(random_mail)
-    assert b"processed" in logged_in_client.get_flags(random_mail).get(random_mail)
+    assert FLAG_TO_CHECK in logged_in_client.get_flags(random_mail).get(random_mail)
     assert f"Flag added to {random_mail}\n" in caplog.text
 
 
 def test_flag_if_already_exists(
-    logged_in_client: IMAPClient, flagged_random_mail, logger, caplog, teardown
+    logged_in_client: IMAPClient, flagged_random_mail, logger, caplog
 ):
     mark_processed(logged_in_client, flagged_random_mail, logger)
 
-    assert b"processed" in logged_in_client.get_flags(flagged_random_mail).get(
+    assert FLAG_TO_CHECK in logged_in_client.get_flags(flagged_random_mail).get(
         flagged_random_mail
     )
+    assert not caplog.text
 
 
 def test_flag_if_already_exists_with_random_mail(
     logged_in_client: IMAPClient, random_mail, logger, caplog, teardown
 ):
 
-    mark_processed(logged_in_client, 12222222, logger)
+    mail_uid = 12222222
 
-    assert not logged_in_client.get_flags(12222222)
-    assert "Mail with uid: 12222222 does not exist" in caplog.text
+    mark_processed(logged_in_client, mail_uid, logger)
+
+    assert not logged_in_client.get_flags(mail_uid)
+    assert f"Mail with uid: {mail_uid} does not exist" in caplog.text
 
 
 def test_create_folder_if_not_exists_happy_path(
     logged_in_client: IMAPClient, logger, teardown, caplog
 ):
-    assert not logged_in_client.folder_exists("random")
+    random_folder = "random-1234567890"
+    assert not logged_in_client.folder_exists(random_folder)
 
-    create_folder_if_not_exists(logged_in_client, "random", logger)
-    teardown.append(lambda client: client.delete_folder("random"))
+    create_folder_if_not_exists(logged_in_client, random_folder, logger)
 
-    assert logged_in_client.folder_exists("random")
+    assert logged_in_client.folder_exists(random_folder)
     assert not caplog.text
 
 
@@ -218,7 +247,6 @@ def test_email_shift(
 
     logged_in_client.select_folder(random_folder)
     mails = logged_in_client.search("ALL")
-
     # change folder, so that when teardown occurs, different folder gets deleted
     # and, connection is not aborted
     logged_in_client.select_folder(EmailFolders.INBOX)
@@ -232,15 +260,17 @@ def test_email_shift(
 def test_email_shift_random(
     logged_in_client: IMAPClient, random_mail, logger, teardown, caplog
 ):
-    shift_mail(logged_in_client, random_mail, "random-123322", logger)
+    not_existing_folder = "random-123322"
+    shift_mail(logged_in_client, random_mail, not_existing_folder, logger)
 
     assert (
-        f"Failed email (uid: {random_mail}) to move to random-123322 folder:"
+        f"Failed email (uid: {random_mail}) to move to {not_existing_folder} folder:"
         in caplog.text
     )
 
-    assert not logged_in_client.folder_exists("random-123322")
+    assert not logged_in_client.folder_exists(not_existing_folder)
     # check that message exists in the inbox
+    logged_in_client.select_folder(EmailFolders.INBOX)
     assert random_mail in logged_in_client.fetch(random_mail, MESSAGE_FORMAT)
 
 
@@ -311,7 +341,7 @@ def test_process_mails_happy_path_processed_mark(logged_in_client, random_mail, 
     assert random_mail in processed_mails
 
     logged_in_client.select_folder(EmailFolders.INBOX)
-    assert b"processed" in logged_in_client.get_flags(random_mail).get(random_mail)
+    assert FLAG_TO_CHECK in logged_in_client.get_flags(random_mail).get(random_mail)
 
 
 def test_process_mails_fetch_correct_message(logged_in_client, random_mail, logger):
