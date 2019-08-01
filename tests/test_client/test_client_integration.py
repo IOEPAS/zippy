@@ -16,7 +16,7 @@ from imapclient.exceptions import LoginError
 
 from zippy.client.main import (
     FLAG_TO_CHECK,
-    MESSAGE_FORMAT,
+    SEEN_FLAG,
     EmailAuthUser,
     EmailFolders,
     ProcessedMessage,
@@ -88,7 +88,7 @@ def random_mail(logged_in_client: IMAPClient, config):
     if config["ssl"]:
         server.starttls(context=ssl_context)
 
-    next_uid = logged_in_client.select_folder("INBOX")[b"UIDNEXT"]
+    next_uid = logged_in_client.select_folder("INBOX", readonly=True)[b"UIDNEXT"]
     server.login("test0@localhost.org", "test0")
     message = """\\
     Subject: Hi there
@@ -124,6 +124,7 @@ def logged_in_client(config, logger):
 
 @pytest.fixture
 def flagged_random_mail(logged_in_client: IMAPClient, random_mail):
+    logged_in_client.select_folder(EmailFolders.INBOX)
     logged_in_client.add_flags(random_mail, FLAG_TO_CHECK)
     assert FLAG_TO_CHECK in logged_in_client.get_flags(random_mail).get(random_mail)
 
@@ -246,7 +247,7 @@ def test_create_folder_if_not_exists_already_exists(
 def test_email_shift(
     logged_in_client: IMAPClient, random_folder, random_mail, logger, teardown, caplog
 ):
-    next_uid = logged_in_client.select_folder(random_folder)[b"UIDNEXT"]
+    next_uid = logged_in_client.select_folder(random_folder, readonly=True)[b"UIDNEXT"]
 
     shift_mail(
         client=logged_in_client,
@@ -258,10 +259,12 @@ def test_email_shift(
 
     assert f"Email (uid: {random_mail}) moved to {random_folder} folder." in caplog.text
 
-    logged_in_client.select_folder(random_folder)
+    logged_in_client.select_folder(random_folder, readonly=True)
     assert next_uid in logged_in_client.search("ALL")
 
-    logged_in_client.select_folder(EmailFolders.INBOX)
+    assert SEEN_FLAG not in logged_in_client.get_flags(next_uid)[next_uid]
+
+    logged_in_client.select_folder(EmailFolders.INBOX, readonly=True)
     assert random_mail not in logged_in_client.search("ALL")
 
 
@@ -284,17 +287,17 @@ def test_email_shift_not_existing_folder(
 
     assert not logged_in_client.folder_exists(not_existing_folder)
     # check that message exists in the inbox
-    logged_in_client.select_folder(EmailFolders.INBOX)
-    assert random_mail in logged_in_client.fetch(random_mail, MESSAGE_FORMAT)
+    logged_in_client.select_folder(EmailFolders.INBOX, readonly=True)
+    assert random_mail in logged_in_client.search("ALL")
 
 
 def test_process_mails_happy_path_important(
     logged_in_client, random_mail, teardown, logger
 ):
 
-    next_uid_important = logged_in_client.select_folder(EmailFolders.IMPORTANT)[
-        b"UIDNEXT"
-    ]
+    next_uid_important = logged_in_client.select_folder(
+        EmailFolders.IMPORTANT, readonly=True
+    )[b"UIDNEXT"]
 
     return_value = ProcessedMessage({}, 120, True, False)
 
@@ -312,14 +315,16 @@ def test_process_mails_happy_path_important(
     assert random_mail in processed_mails
 
     # The mail should have been shifted to EmailFolders.IMPORTANT
-    logged_in_client.select_folder(EmailFolders.IMPORTANT)
-    shifted_mail = logged_in_client.fetch(next_uid_important, MESSAGE_FORMAT)
+    logged_in_client.select_folder(EmailFolders.IMPORTANT, readonly=True)
+    assert next_uid_important in logged_in_client.search("ALL")
 
-    assert next_uid_important in shifted_mail
-    assert shifted_mail.get(next_uid_important)
+    assert (
+        SEEN_FLAG
+        not in logged_in_client.get_flags(next_uid_important)[next_uid_important]
+    )
 
     # the old mail should not be in the EmailFolders.INBOX
-    logged_in_client.select_folder(EmailFolders.INBOX)
+    logged_in_client.select_folder(EmailFolders.INBOX, readonly=True)
     assert random_mail not in logged_in_client.search("ALL")
 
 
@@ -327,7 +332,9 @@ def test_process_mails_happy_path_urgent(
     logged_in_client, random_mail, teardown, logger
 ):
 
-    next_uid_urgent = logged_in_client.select_folder(EmailFolders.URGENT)[b"UIDNEXT"]
+    next_uid_urgent = logged_in_client.select_folder(
+        EmailFolders.URGENT, readonly=True
+    )[b"UIDNEXT"]
 
     return_value = ProcessedMessage({}, 120, True, True)
 
@@ -345,14 +352,13 @@ def test_process_mails_happy_path_urgent(
     assert random_mail in processed_mails
 
     # The mail should have been shifted to EmailFolders.IMPORTANT
-    logged_in_client.select_folder(EmailFolders.URGENT)
-    shifted_mail = logged_in_client.fetch(next_uid_urgent, MESSAGE_FORMAT)
+    logged_in_client.select_folder(EmailFolders.URGENT, readonly=True)
+    assert next_uid_urgent in logged_in_client.search("ALL")
 
-    assert next_uid_urgent in shifted_mail
-    assert shifted_mail.get(next_uid_urgent)
+    assert SEEN_FLAG not in logged_in_client.get_flags(next_uid_urgent)[next_uid_urgent]
 
     # the old mail should not be in the EmailFolders.INBOX
-    logged_in_client.select_folder(EmailFolders.INBOX)
+    logged_in_client.select_folder(EmailFolders.INBOX, readonly=True)
     assert random_mail not in logged_in_client.search("ALL")
 
 
@@ -365,8 +371,10 @@ def test_process_mails_happy_path_processed_mark(logged_in_client, random_mail, 
     assert len(processed_mails) == 1
     assert random_mail in processed_mails
 
-    logged_in_client.select_folder(EmailFolders.INBOX)
+    logged_in_client.select_folder(EmailFolders.INBOX, readonly=True)
     assert FLAG_TO_CHECK in logged_in_client.get_flags(random_mail).get(random_mail)
+
+    assert SEEN_FLAG not in logged_in_client.get_flags(random_mail)[random_mail]
 
 
 def test_process_mails_fetch_correct_message(logged_in_client, random_mail, logger):
@@ -382,6 +390,8 @@ def test_process_mails_fetch_correct_message(logged_in_client, random_mail, logg
     print(mocked_ranker.mock_calls[0][1][0])
     assert type(mocked_ranker.mock_calls[0][1][0]) == email.message.Message
     assert "Hi there" in mocked_ranker.mock_calls[0][1][0].as_string()
+
+    assert SEEN_FLAG not in logged_in_client.get_flags(random_mail)[random_mail]
 
 
 def test_retrieve_emails_with_wrong_credentials(

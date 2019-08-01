@@ -138,7 +138,7 @@ def shift_mail(
 ):
     """Shift mail with given uid to given destination folder."""
     try:
-        client.select_folder(source)
+        client.select_folder(source, readonly=True)
         client.move(uid, destination)
     except IMAPClientError as exc_info:
         # most likely the folder doesnot exists
