@@ -1,4 +1,5 @@
 import email
+import imaplib
 import os
 import smtplib
 import socket
@@ -20,7 +21,7 @@ from zippy.client.main import (
     EmailFolders,
     ProcessedMessage,
     create_folder_if_not_exists,
-    get_server,
+    get_client,
     mark_processed,
     process_mails,
     retrieve_new_emails,
@@ -62,7 +63,7 @@ def config():
 
 @pytest.fixture
 def imap_client(config: dict, logger):
-    client = get_server(config, logger)
+    client = get_client(config, logger)
     yield client
     try:
         client.shutdown()
@@ -87,7 +88,7 @@ def random_mail(logged_in_client: IMAPClient, config):
     if config["ssl"]:
         server.starttls(context=ssl_context)
 
-    next_uid = logged_in_client.select_folder("INBOX").get(b"UIDNEXT")
+    next_uid = logged_in_client.select_folder("INBOX")[b"UIDNEXT"]
     server.login("test0@localhost.org", "test0")
     message = """\\
     Subject: Hi there
@@ -96,8 +97,6 @@ def random_mail(logged_in_client: IMAPClient, config):
     server.sendmail("test0@localhost.org", "test1@localhost.org", message)
 
     wait_till_mail_appears(logged_in_client, uid=next_uid)
-
-    logged_in_client.remove_flags(next_uid, "\\Seen")
 
     yield next_uid
 
@@ -108,10 +107,14 @@ def random_mail(logged_in_client: IMAPClient, config):
 
 @pytest.fixture
 def logged_in_client(config, logger):
-    client = get_server(config, logger)
+    client = get_client(config, logger)
     client.login("test1@localhost.org", "test1")
     yield client
-    client.logout()
+    try:
+        client.logout()
+    except imaplib.IMAP4.error:
+        # must have already logged out
+        pass
     try:
         client.shutdown()
     except OSError:
@@ -123,7 +126,9 @@ def logged_in_client(config, logger):
 def flagged_random_mail(logged_in_client: IMAPClient, random_mail):
     logged_in_client.add_flags(random_mail, FLAG_TO_CHECK)
     assert FLAG_TO_CHECK in logged_in_client.get_flags(random_mail).get(random_mail)
-    yield random_mail
+
+    # no need to cleanup, as the message will get deleted anyway
+    return random_mail
 
 
 @pytest.fixture
@@ -147,7 +152,7 @@ def teardown(logged_in_client: IMAPClient):
     yield teardowns
 
     for func in teardowns:
-        for _ in range(2):
+        for _ in range(3):
             try:
                 func(logged_in_client)
             except socket.timeout:
@@ -159,7 +164,7 @@ def teardown(logged_in_client: IMAPClient):
 def wait_till_mail_appears(client: IMAPClient, uid, timeout=10):
     entry_time = time.time()
     while True:
-        if client.fetch(uid, MESSAGE_FORMAT):
+        if uid in client.search("ALL"):
             break
         if (time.time() - entry_time) > timeout:
             print(f"Waited for {timeout}. Could not find {uid}")
@@ -170,7 +175,7 @@ def wait_till_mail_appears(client: IMAPClient, uid, timeout=10):
 def test_get_server_ssl_error(config: dict, logger, caplog):
     config["ssl"] = True
     with pytest.raises(ssl.SSLError):
-        get_server(config, logger, protocol=ssl.PROTOCOL_TLS, verify_cert=True)
+        get_client(config, logger, protocol=ssl.PROTOCOL_TLS, verify_cert=True)
 
     assert "Error due to ssl." in caplog.text
 
@@ -178,7 +183,7 @@ def test_get_server_ssl_error(config: dict, logger, caplog):
 def test_get_server_socket_error(config: dict, logger, caplog):
     config["imap_port"] = 12332  # hopefully random
     with pytest.raises(socket.error):
-        get_server(config, logger)
+        get_client(config, logger)
 
     assert "Could not connect to the mail server." in caplog.text
 
@@ -202,11 +207,11 @@ def test_flag_if_already_exists(
     assert not caplog.text
 
 
-def test_flag_if_already_exists_with_random_mail(
+def test_flag_if_already_exists_with_not_existing_mail_id(
     logged_in_client: IMAPClient, random_mail, logger, caplog, teardown
 ):
 
-    mail_uid = 12222222
+    mail_uid = random_mail + 10
 
     mark_processed(logged_in_client, mail_uid, logger)
 
@@ -221,6 +226,7 @@ def test_create_folder_if_not_exists_happy_path(
     assert not logged_in_client.folder_exists(random_folder)
 
     create_folder_if_not_exists(logged_in_client, random_folder, logger)
+    teardown.append(lambda client: client.delete_folder(random_folder))
 
     assert logged_in_client.folder_exists(random_folder)
     assert not caplog.text
@@ -240,28 +246,36 @@ def test_create_folder_if_not_exists_already_exists(
 def test_email_shift(
     logged_in_client: IMAPClient, random_folder, random_mail, logger, teardown, caplog
 ):
-    logged_in_client.select_folder(random_folder)
-    assert not logged_in_client.search("ALL")
+    next_uid = logged_in_client.select_folder(random_folder)[b"UIDNEXT"]
 
-    shift_mail(logged_in_client, random_mail, random_folder, logger)
-
-    logged_in_client.select_folder(random_folder)
-    mails = logged_in_client.search("ALL")
-    # change folder, so that when teardown occurs, different folder gets deleted
-    # and, connection is not aborted
-    logged_in_client.select_folder(EmailFolders.INBOX)
-
-    assert random_mail not in logged_in_client.search("ALL")
-    assert len(mails) == 1
+    shift_mail(
+        client=logged_in_client,
+        uid=random_mail,
+        source=EmailFolders.INBOX,
+        destination=random_folder,
+        logger=logger,
+    )
 
     assert f"Email (uid: {random_mail}) moved to {random_folder} folder." in caplog.text
 
+    logged_in_client.select_folder(random_folder)
+    assert next_uid in logged_in_client.search("ALL")
 
-def test_email_shift_random(
+    logged_in_client.select_folder(EmailFolders.INBOX)
+    assert random_mail not in logged_in_client.search("ALL")
+
+
+def test_email_shift_not_existing_folder(
     logged_in_client: IMAPClient, random_mail, logger, teardown, caplog
 ):
     not_existing_folder = "random-123322"
-    shift_mail(logged_in_client, random_mail, not_existing_folder, logger)
+    shift_mail(
+        client=logged_in_client,
+        uid=random_mail,
+        source=EmailFolders.INBOX,
+        destination=not_existing_folder,
+        logger=logger,
+    )
 
     assert (
         f"Failed email (uid: {random_mail}) to move to {not_existing_folder} folder:"
@@ -274,58 +288,68 @@ def test_email_shift_random(
     assert random_mail in logged_in_client.fetch(random_mail, MESSAGE_FORMAT)
 
 
-def test_process_mails_happy_path_important(logged_in_client, random_mail, logger):
-    return_value = ProcessedMessage({}, 120, True, False)
+def test_process_mails_happy_path_important(
+    logged_in_client, random_mail, teardown, logger
+):
 
-    msg_data = logged_in_client.fetch([random_mail], MESSAGE_FORMAT)[random_mail]
-    prev_mail: email.message.EmailMessage = email.message_from_bytes(
-        msg_data[MESSAGE_FORMAT]
-    )
+    next_uid_important = logged_in_client.select_folder(EmailFolders.IMPORTANT)[
+        b"UIDNEXT"
+    ]
+
+    return_value = ProcessedMessage({}, 120, True, False)
 
     with mock.patch("zippy.client.main.rank_message", return_value=return_value):
         processed_mails = process_mails(logged_in_client, [random_mail], logger)
+
+    def remove_message(client: IMAPClient):
+        client.select_folder(EmailFolders.IMPORTANT)
+        client.delete_messages(next_uid_important)
+        client.expunge()
+
+    teardown.append(remove_message)
 
     assert len(processed_mails) == 1
     assert random_mail in processed_mails
 
     # The mail should have been shifted to EmailFolders.IMPORTANT
     logged_in_client.select_folder(EmailFolders.IMPORTANT)
-    last_mail = logged_in_client.search("ALL")[-1]
-    msg_data = logged_in_client.fetch(last_mail, MESSAGE_FORMAT)[last_mail]
-    shifted_mail: email.message.EmailMessage = email.message_from_bytes(
-        msg_data[MESSAGE_FORMAT]
-    )
+    shifted_mail = logged_in_client.fetch(next_uid_important, MESSAGE_FORMAT)
 
-    assert prev_mail.get("date") == shifted_mail.get("date")
+    assert next_uid_important in shifted_mail
+    assert shifted_mail.get(next_uid_important)
 
     # the old mail should not be in the EmailFolders.INBOX
     logged_in_client.select_folder(EmailFolders.INBOX)
     assert random_mail not in logged_in_client.search("ALL")
 
 
-def test_process_mails_happy_path_urgent(logged_in_client, random_mail, logger):
-    return_value = ProcessedMessage({}, 120, True, True)
+def test_process_mails_happy_path_urgent(
+    logged_in_client, random_mail, teardown, logger
+):
 
-    msg_data = logged_in_client.fetch([random_mail], MESSAGE_FORMAT)[random_mail]
-    prev_mail: email.message.EmailMessage = email.message_from_bytes(
-        msg_data[MESSAGE_FORMAT]
-    )
+    next_uid_urgent = logged_in_client.select_folder(EmailFolders.URGENT)[b"UIDNEXT"]
+
+    return_value = ProcessedMessage({}, 120, True, True)
 
     with mock.patch("zippy.client.main.rank_message", return_value=return_value):
         processed_mails = process_mails(logged_in_client, [random_mail], logger)
+
+    def remove_message(client: IMAPClient):
+        client.select_folder(EmailFolders.URGENT)
+        client.delete_messages(next_uid_urgent)
+        client.expunge()
+
+    teardown.append(remove_message)
 
     assert len(processed_mails) == 1
     assert random_mail in processed_mails
 
     # The mail should have been shifted to EmailFolders.IMPORTANT
     logged_in_client.select_folder(EmailFolders.URGENT)
-    last_mail = logged_in_client.search("ALL")[-1]
-    msg_data = logged_in_client.fetch(last_mail, MESSAGE_FORMAT)[last_mail]
-    shifted_mail: email.message.EmailMessage = email.message_from_bytes(
-        msg_data[MESSAGE_FORMAT]
-    )
+    shifted_mail = logged_in_client.fetch(next_uid_urgent, MESSAGE_FORMAT)
 
-    assert prev_mail.get("date") == shifted_mail.get("date")
+    assert next_uid_urgent in shifted_mail
+    assert shifted_mail.get(next_uid_urgent)
 
     # the old mail should not be in the EmailFolders.INBOX
     logged_in_client.select_folder(EmailFolders.INBOX)
@@ -338,6 +362,7 @@ def test_process_mails_happy_path_processed_mark(logged_in_client, random_mail, 
 
         processed_mails = process_mails(logged_in_client, [random_mail], logger)
 
+    assert len(processed_mails) == 1
     assert random_mail in processed_mails
 
     logged_in_client.select_folder(EmailFolders.INBOX)

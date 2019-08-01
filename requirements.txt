@@ -27,3 +27,4 @@ sklearn
 
 ## client/updatechecker
 schedule==0.6.0
+pytest-rerunfailures==7.0

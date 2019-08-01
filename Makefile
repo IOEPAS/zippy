@@ -27,8 +27,8 @@ MODELS_DIR="output/models"
 
 FILENAME=
 
-TEST_ARGS=
-
+TEST_ARGS=--reruns 3
+TEST_ON_DOVECOT=
 COVERAGE?=
 COV_ARGS?=
 

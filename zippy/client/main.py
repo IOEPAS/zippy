@@ -55,6 +55,7 @@ class ProcessedMessage(NamedTuple):
 CLIENT: str = "client"
 USERS: str = "users"
 FLAG_TO_CHECK: bytes = b"processed"
+SEEN_FLAG: bytes = b"\\Seen"
 MESSAGE_FORMAT: bytes = b"RFC822"
 
 
@@ -90,13 +91,13 @@ def with_logging(
     return decorator_logger
 
 
-def get_server(
+def get_client(
     config: dict,
     logger: logging.Logger,
     protocol=ssl.PROTOCOL_SSLv23,
     verify_cert: bool = False,
 ) -> IMAPClient:
-    """Return server."""
+    """Return client."""
     ssl_context = ssl.SSLContext(protocol)
     if not verify_cert:
         ssl_context.verify_flags = ssl.CERT_OPTIONAL
@@ -104,7 +105,7 @@ def get_server(
         ssl_context.verify_mode = ssl.CERT_REQUIRED
 
     try:
-        server = IMAPClient(
+        client = IMAPClient(
             config["hostname"],
             port=config["imap_port"],
             ssl=config.get("ssl", True),
@@ -118,24 +119,27 @@ def get_server(
         logger.exception("Could not connect to the mail server.")
         raise
     else:
-        return server
+        return client
 
 
 def create_folder_if_not_exists(
-    server: IMAPClient, folder: str, logger: logging.Logger
+    client: IMAPClient, folder: str, logger: logging.Logger
 ):
     """Create folder if it already exists."""
     try:
-        server.create_folder(folder)
+        client.create_folder(folder)
     except IMAPClientError:
         # most likely, it already exists
         logger.info("Looks like the folder %s already exists.", folder)
 
 
-def shift_mail(server: IMAPClient, uid: int, destination: str, logger: logging.Logger):
+def shift_mail(
+    client: IMAPClient, uid: int, source: str, destination: str, logger: logging.Logger
+):
     """Shift mail with given uid to given destination folder."""
     try:
-        server.move(uid, destination)
+        client.select_folder(source)
+        client.move(uid, destination)
     except IMAPClientError as exc_info:
         # most likely the folder doesnot exists
         logger.exception(
@@ -148,16 +152,16 @@ def shift_mail(server: IMAPClient, uid: int, destination: str, logger: logging.L
         logger.info("Email (uid: %s) moved to %s folder.", uid, destination)
 
 
-def mark_processed(server: IMAPClient, uid: int, logger: logging.Logger):
+def mark_processed(client: IMAPClient, uid: int, logger: logging.Logger):
     """Add flags to not check the emails again."""
-    server.select_folder(EmailFolders.INBOX)
-    flags = server.get_flags(uid)
+    client.select_folder(EmailFolders.INBOX)
+    flags = client.get_flags(uid)
 
     if uid not in flags:
         logger.warn("Mail with uid: %s does not exist", uid)
         return
     if FLAG_TO_CHECK not in flags.get(uid):
-        flags = server.add_flags(uid, FLAG_TO_CHECK)
+        flags = client.add_flags(uid, FLAG_TO_CHECK)
         if uid not in flags:
             logger.warn(
                 "Mail (uid: %s) could not added " "Weights might get updated twice", uid
@@ -167,7 +171,7 @@ def mark_processed(server: IMAPClient, uid: int, logger: logging.Logger):
 
 
 def process_mail(
-    server: IMAPClient, uid: int, message_data: dict, logger: logging.Logger
+    client: IMAPClient, uid: int, message_data: dict, logger: logging.Logger
 ) -> ProcessedMessage:
     """Process mail."""
     email_message = email.message_from_bytes(message_data[MESSAGE_FORMAT])
@@ -183,64 +187,72 @@ def process_mail(
     )
     if processed_msg.important and not processed_msg.intent:
         shift_mail(
-            server=server, uid=uid, destination=EmailFolders.IMPORTANT, logger=logger
+            client=client,
+            uid=uid,
+            source=EmailFolders.INBOX,
+            destination=EmailFolders.IMPORTANT,
+            logger=logger,
         )
     elif processed_msg.important and processed_msg.intent:
         shift_mail(
-            server=server, uid=uid, destination=EmailFolders.URGENT, logger=logger
+            client=client,
+            uid=uid,
+            source=EmailFolders.INBOX,
+            destination=EmailFolders.URGENT,
+            logger=logger,
         )
     else:
-        mark_processed(server=server, uid=uid, logger=logger)
+        mark_processed(client=client, uid=uid, logger=logger)
 
     return processed_msg
 
 
 def process_mails(
-    server: IMAPClient, uids: List[int], logger: logging.Logger
+    client: IMAPClient, uids: List[int], logger: logging.Logger
 ) -> Dict[int, ProcessedMessage]:
     """Retrieve all mails and process them, one by one."""
-    server.select_folder(EmailFolders.INBOX)
+    client.select_folder(EmailFolders.INBOX, readonly=True)
     processed_msgs: Dict[int, ProcessedMessage] = {}
-    for uid, message_data in server.fetch(uids, MESSAGE_FORMAT).items():
-        processed_msgs[uid] = process_mail(server, uid, message_data, logger)
+    for uid, message_data in client.fetch(uids, MESSAGE_FORMAT).items():
+        processed_msgs[uid] = process_mail(client, uid, message_data, logger)
 
     return processed_msgs
 
 
 def retrieve_new_emails(
-    server: IMAPClient, user: EmailAuthUser, logger: Optional[logging.Logger] = None
+    client: IMAPClient, user: EmailAuthUser, logger: Optional[logging.Logger] = None
 ) -> List[int]:
     """Retrieve new unseen emails for the user."""
     logger = logger or get_logger(CLIENT)
     mails: List[int] = []
     try:
-        server.login(user.email_address, user.password)
+        client.login(user.email_address, user.password)
         logger.info("Logged in successful for %s", user)
     except LoginError:
         logger.exception(
             "Credentials could not be verified for '%s'.", user.email_address
         )
-        server.shutdown()
+        client.shutdown()
         raise
     except socket.error:
         logger.exception("Could not connect to the mail server.")
-        server.shutdown()
+        client.shutdown()
         raise
     except Exception as exc_info:  # pylint: disable=broad-except
         logger.exception("Unknown Exception occured. %s", str(exc_info))
-        server.shutdown()
+        client.shutdown()
         raise
     else:
 
-        create_folder_if_not_exists(server, EmailFolders.IMPORTANT, logger)
-        create_folder_if_not_exists(server, EmailFolders.URGENT, logger)
+        create_folder_if_not_exists(client, EmailFolders.IMPORTANT, logger)
+        create_folder_if_not_exists(client, EmailFolders.URGENT, logger)
 
         search_key = b"UNSEEN UNKEYWORD " + FLAG_TO_CHECK
 
-        server.select_folder(EmailFolders.INBOX, readonly=True)
+        client.select_folder(EmailFolders.INBOX, readonly=True)
 
         logger.debug("Searching for unseen emails flagged '%s'", FLAG_TO_CHECK)
-        mails = server.search(search_key)
+        mails = client.search(search_key)
 
     return mails
 
@@ -255,15 +267,15 @@ def online_train_all(processed_messages: Dict[int, ProcessedMessage]):
 def main(
     config: dict,
     user: EmailAuthUser,
-    server: Optional[IMAPClient] = None,
+    client: Optional[IMAPClient] = None,
     logger: Optional[logging.Logger] = None,
 ):
     """Handle all updates for a specific users."""
     logger = logger or get_logger(CLIENT)
-    server = server or get_server(config, logger=logger)
-    with server:
-        unprocessed_mails = retrieve_new_emails(server, user, logger)
-        processed_messages = process_mails(server, unprocessed_mails, logger)
+    client = client or get_client(config, logger=logger)
+    with client:
+        unprocessed_mails = retrieve_new_emails(client, user, logger)
+        processed_messages = process_mails(client, unprocessed_mails, logger)
         online_train_all(processed_messages)
 
 
