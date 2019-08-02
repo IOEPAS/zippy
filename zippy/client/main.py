@@ -50,9 +50,11 @@ class ProcessedMessage(NamedTuple):
     rank: float
     important: bool
     intent: bool
+    threshold: float
 
 
 CLIENT: str = "client"
+OUTPUT: str = "output"
 USERS: str = "users"
 FLAG_TO_CHECK: bytes = b"processed"
 SEEN_FLAG: bytes = b"\\Seen"
@@ -174,16 +176,19 @@ def process_mail(
     client: IMAPClient, uid: int, message_data: dict, logger: logging.Logger
 ) -> ProcessedMessage:
     """Process mail."""
+    output = get_logger(OUTPUT)
     email_message = email.message_from_bytes(message_data[MESSAGE_FORMAT])
     msg = rank_message(email_message)
     processed_msg = ProcessedMessage(*msg)
-    logger.info(
-        "Rank: %s, Important: %s, Intent: %s, Subject: %s, UID: %s",
-        processed_msg.rank,
-        processed_msg.important,
-        processed_msg.intent,
-        email_message["subject"],
-        uid,
+    output.info(
+        {
+            "rank": processed_msg.rank,
+            "important": processed_msg.important,
+            "intent": processed_msg.intent,
+            "subject": email_message["Subject"],
+            "uid": uid,
+            "threshold": processed_msg.threshold,
+        }
     )
     if processed_msg.important and not processed_msg.intent:
         shift_mail(

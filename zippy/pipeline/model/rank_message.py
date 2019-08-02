@@ -163,4 +163,4 @@ def rank_message(message, weights=None):  # pylint: disable=too-many-locals
         [get_sequence(part, TOKENIZER) for part in parts]
     )
 
-    return [msg, rank, rank > threshold, np.mean(intent_score) > 0.5]
+    return [msg, rank, rank > threshold, np.mean(intent_score) > 0.5, threshold]
