@@ -1,0 +1,53 @@
+<html>
+    <head>
+        <title>Log Analyser</title>
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+        <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+        <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                var table = $('#example').DataTable( {
+                    "ajax": {
+                        "url":"http://localhost:3000/logs",
+                        "dataSrc": ""
+                    },
+                    "columns": [
+                        { data: 'uid' },
+                        { data: 'rank' },
+                        { data: 'important' },
+                        { data: 'intent' },
+                        {data: 'subject'},
+                        {data: 'threshold'}
+                    ]
+                } );
+                setInterval( function () {
+                    table.ajax.reload( null, false ); // user paging is not reset on reload
+                }, 10000 );
+            } );
+        </script>
+    </head>
+    <body>
+        <table id="example" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>UID</th>
+                    <th>Rank</th>
+                    <th>Important</th>
+                    <th>Intent</th>
+                    <th>Subject</th>
+                    <th>Threshold</th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>UID</th>
+                    <th>Rank</th>
+                    <th>Important</th>
+                    <th>Intent</th>
+                    <th>Subject</th>
+                    <th>Threshold</th>
+                </tr>
+            </tfoot>
+        </table>
+    </body>
+</html>
