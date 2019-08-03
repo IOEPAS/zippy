@@ -7,5 +7,5 @@ def wrap_json_output(input_file):
     json_ending = "]}"
 
     yield json_starting
-    yield ",".join(input_file.readlines())
+    yield ",".join(input_file.readlines()).replace("}{", "},{")
     yield json_ending
