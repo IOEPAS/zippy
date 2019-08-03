@@ -133,3 +133,5 @@ dmypy.json
 
 /mailconfig
 pip-wheel-metadata
+
+/node_modules/

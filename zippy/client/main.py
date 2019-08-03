@@ -50,7 +50,6 @@ class ProcessedMessage(NamedTuple):
     rank: float
     important: bool
     intent: bool
-    threshold: float
 
 
 CLIENT: str = "client"
@@ -178,7 +177,7 @@ def process_mail(
     """Process mail."""
     output = get_logger(OUTPUT)
     email_message = email.message_from_bytes(message_data[MESSAGE_FORMAT])
-    msg = rank_message(email_message)
+    *msg, threshold = rank_message(email_message)
     processed_msg = ProcessedMessage(*msg)
     output.info(
         {
@@ -187,7 +186,9 @@ def process_mail(
             "intent": processed_msg.intent,
             "subject": email_message["Subject"],
             "uid": uid,
-            "threshold": processed_msg.threshold,
+            "from": email_message["From"],
+            "to": email_message["To"],
+            "threshold": threshold,
         }
     )
     if processed_msg.important and not processed_msg.intent:

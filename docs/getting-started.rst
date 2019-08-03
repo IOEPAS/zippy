@@ -38,4 +38,10 @@ Installation
 
       $ make docs
 
-7. Start coding...
+7. To run json log server,
+
+    .. code-block:: console
+
+      $ make -j2 log-server
+
+8. Start coding...
