@@ -137,7 +137,7 @@ def get_weights_from_thread(msg, thread_weights, count_vector):
         msg_thread_from_wt = 1
 
     # Then, from thread activity
-    subject = msg["Subject"]
+    subject = msg["Subject"][0]
     msg_thread_activity_wt = get_weights(subject, thread_weights, term=False)
 
     # Then, weights based on terms in threads
@@ -172,10 +172,8 @@ def calculate_rank(msg, weights=None):
             weights = load_weights(msg["To"][0])
         else:
             weights = create_user_model(msg["To"][0])
-        print("user weights")
     elif weights == "global":
         weights = load_weights("global")
-        print("global weights")
     else:
         weights = weights
 
@@ -221,9 +219,9 @@ def rank_message(message):
     user_model_rank, user_model_threshold = calculate_rank(msg)
     global_model_rank, global_model_threshold = calculate_rank(msg, weights="global")
 
-    rank = 0.9 * user_model_rank + 0.1 * global_model_rank
+    rank = user_model_rank + global_model_rank
 
-    threshold = 0.9 * user_model_threshold + 0.1 * global_model_threshold
+    threshold = user_model_threshold + 0.1 * global_model_threshold
 
     # rank = 1 / (1 + np.exp(-weighted_rank/weighted_threshold))
 
@@ -231,9 +229,10 @@ def rank_message(message):
 
     content: str = msg["content"][0]
 
-    parts = (*content.splitlines(), msg["Subject"][0])
-    intent_score = intent_model.predict(
-        [get_sequence(part, TOKENIZER) for part in parts]
-    )
+    # parts = (*content.splitlines(), msg["Subject"][0])
+    # intent_score = intent_model.predict(
+    #     [get_sequence(part, TOKENIZER) for part in parts]
+    # )
+    intent_score = intent_model.predict(get_sequence(msg["Subject"][0], TOKENIZER))
 
     return [msg, rank, rank > threshold, np.mean(intent_score) > 0.5, threshold]
