@@ -299,7 +299,7 @@ def test_process_mails_happy_path_important(
         EmailFolders.IMPORTANT, readonly=True
     )[b"UIDNEXT"]
 
-    return_value = ProcessedMessage({}, 120, True, False)
+    return_value = *ProcessedMessage({}, 120, True, False), 240
 
     with mock.patch("zippy.client.main.rank_message", return_value=return_value):
         processed_mails = process_mails(logged_in_client, [random_mail], logger)
@@ -336,7 +336,7 @@ def test_process_mails_happy_path_urgent(
         EmailFolders.URGENT, readonly=True
     )[b"UIDNEXT"]
 
-    return_value = ProcessedMessage({}, 120, True, True)
+    return_value = *ProcessedMessage({}, 120, True, True), 240
 
     with mock.patch("zippy.client.main.rank_message", return_value=return_value):
         processed_mails = process_mails(logged_in_client, [random_mail], logger)
@@ -363,7 +363,7 @@ def test_process_mails_happy_path_urgent(
 
 
 def test_process_mails_happy_path_processed_mark(logged_in_client, random_mail, logger):
-    return_value = ProcessedMessage({}, 120, False, False)
+    return_value = *ProcessedMessage({}, 120, False, False), 240
     with mock.patch("zippy.client.main.rank_message", return_value=return_value):
 
         processed_mails = process_mails(logged_in_client, [random_mail], logger)
@@ -378,7 +378,7 @@ def test_process_mails_happy_path_processed_mark(logged_in_client, random_mail, 
 
 
 def test_process_mails_fetch_correct_message(logged_in_client, random_mail, logger):
-    return_value = ProcessedMessage({}, 120, False, False)
+    return_value = *ProcessedMessage({}, 120, False, False), 240
     with mock.patch(
         "zippy.client.main.rank_message", return_value=return_value
     ) as mocked_ranker:

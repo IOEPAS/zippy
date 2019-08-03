@@ -1,0 +1,82 @@
+<html>
+    <head>
+        <title>Log Analyser</title>
+    </head>
+
+    <body>
+        <nav class="navbar navbar-dark navbar-expand-sm justify-content-between">
+            <a class="navbar-brand navbar-text display-1 text-danger" href="/">Log Analyzer 
+                <small>- Part of <i>Ranking Emails based on Priority</i> project</small>
+            </a>
+            <form class="form-inline my-2 my-lg-0">
+                <input class="form-control mr-sm-2"
+                       id="search" type="search"
+                       placeholder="Search logs"
+                       aria-label="Search">
+            </form>
+        </nav>
+        <table id="log_table" class="table table-striped table-bordered table-hover" style="width:100%">
+            <thead>
+                <tr>
+                    <th>To</th>
+                    <th>UID</th>
+                    <th>From</th>
+                    <th>Subject</th>
+                    <th>Important</th>
+                    <th>Intent</th>
+                    <th>Rank</th>
+                    <th>Threshold</th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+
+        <script src="jquery-3.3.1.min.js"></script>
+        <script src="bootstrap.min.js"></script>
+        <script type="text/javascript" src="datatables.min.js"></script>
+        <script type="text/javascript" src="dataTables.bootstrap4.min.js"></script>
+
+        <script>
+            $(document).ready(function() {
+                var table = $('#log_table').DataTable( {
+                    "select": true,
+                    deferRender:    true,
+                    rowReorder: true,
+                    "dom": 'rt<"bottom"il><"clear">',
+                    responsive: true,
+                    colReorder: true,
+                    paging:         false,
+                    scrollY:        '70vh',
+                    scrollCollapse: true,
+                    "ajax": {
+                        "url":"http://localhost:3000/logs",
+                        "dataSrc": ""
+                    },
+                    "columns": [
+                        {data: 'to'},
+                        { data: 'uid' },
+                        {data: 'from'},
+                        {data: 'subject'},
+                        { data: 'important' },
+                        { data: 'intent' },
+                         { data: 'rank' },
+                        {data: 'threshold'}
+                    ]
+                } );
+                setInterval( function () {
+                    table.ajax.reload( null, false ); // user paging is not reset on reload
+                }, 8000 );
+                $("#search").on("keyup", function () {
+                    table.search( this.value ).draw();
+                });
+                $("#search").keypress(
+                    function(event){
+                        if (event.which == "13") {
+                            event.preventDefault();
+                }});
+            });
+        </script>
+        <link rel="stylesheet" type="text/css" href="datatables.min.css"/>
+        <link rel="stylesheet" href="bootstrap.min.css" />
+        <link rel="stylesheet" href="dataTables.bootstrap4.min.css"/>
+</html>

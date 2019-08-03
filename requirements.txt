@@ -27,4 +27,12 @@ sklearn
 
 ## client/updatechecker
 schedule==0.6.0
+
+## rerun test if it fails
 pytest-rerunfailures==7.0
+
+## watchdog
+watchdog==0.9.0
+
+## log output in json
+python-json-logger==0.1.11
