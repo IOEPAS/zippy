@@ -42,6 +42,6 @@ Installation
 
     .. code-block:: console
 
-      $ make -j2 log-server
+      $ make log-server
 
 8. Start coding...

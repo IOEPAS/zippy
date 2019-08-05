@@ -145,18 +145,8 @@ run:
 
 .PHONY: log-server
 ## Run logger
-log-server: run_json_emitter run_json_server
-
-.PHONY: run_json_server
-## Run json server for logs api
-run_json_server:
-	sleep 5
-	npm run json-server
-
-.PHONY: run_json_emitter
-## Run json emitter script
-run_json_emitter:
-	$(PYTHON) scripts/log_to_json.py
+log-server:
+	$(PYTHON) scripts/json_server.py
 
 .PHONY: docs
 ## Make docs

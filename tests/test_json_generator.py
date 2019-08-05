@@ -3,9 +3,18 @@
 import json
 import tempfile
 
+from io import BytesIO
+
 import pytest
 
-from zippy.utils.json_generator import wrap_json_output
+from zippy.utils.json_generator import write_json_output
+
+
+@pytest.fixture
+def output_stream():
+    """Output stream for bytesio."""
+    with BytesIO() as stream:
+        yield stream
 
 
 @pytest.fixture
@@ -82,87 +91,77 @@ def empty_log_file():
     return file
 
 
-def test_logfile(log_file):
+def test_logfile(log_file, output_stream):
     """Test log file happy path with 2 logs."""
-    output = ""
-    with open(log_file.name) as file:
-        for line in wrap_json_output(file):
-            output += line
+    with open(log_file.name, "rb") as file:
+        write_json_output(file, output_stream)
 
     try:
-        json_log = json.loads(output)
+        json_log = json.loads(output_stream.getvalue())
     except ValueError:
         assert False, "Invalid json generated."
     else:
-        assert len(json_log["logs"]) == 2
-        assert json_log["logs"][0]["from"] == "test0@localhost.org"
-        assert json_log["logs"][1]["from"] == "test1@localhost.org"
+        assert len(json_log) == 2
+        assert json_log[0]["from"] == "test0@localhost.org"
+        assert json_log[1]["from"] == "test1@localhost.org"
 
 
-def test_empty_logfile(empty_log_file):
+def test_empty_logfile(empty_log_file, output_stream):
     """Test empty logs."""
-    output = ""
-    with open(empty_log_file.name) as file:
-        for line in wrap_json_output(file):
-            output += line
+    with open(empty_log_file.name, "rb") as file:
+        write_json_output(file, output_stream)
 
     try:
-        json_log = json.loads(output)
+        json_log = json.loads(output_stream.getvalue())
     except ValueError:
         assert False, "Invalid json generated."
     else:
-        assert not json_log["logs"]
+        assert not json_log
 
 
-def test_single_logfile(single_log_file):
+def test_single_logfile(single_log_file, output_stream):
     """Test with single log."""
-    output = ""
-    with open(single_log_file.name) as file:
-        for line in wrap_json_output(file):
-            output += line
+    with open(single_log_file.name, "rb") as file:
+        write_json_output(file, output_stream)
 
     try:
-        json_log = json.loads(output)
+        json_log = json.loads(output_stream.getvalue())
     except ValueError:
         assert False, "Invalid json generated."
     else:
-        assert len(json_log["logs"]) == 1
-        assert json_log["logs"][0]["from"] == "test0@localhost.org"
+        assert len(json_log) == 1
+        assert json_log[0]["from"] == "test0@localhost.org"
 
 
-def test_logfile_log_entries_on_same_line(log_on_same_line):
+def test_logfile_log_entries_on_same_line(log_on_same_line, output_stream):
     """Test with single log."""
-    output = ""
-    with open(log_on_same_line.name) as file:
-        for line in wrap_json_output(file):
-            output += line
+    with open(log_on_same_line.name, "rb") as file:
+        write_json_output(file, output_stream)
 
     try:
-        json_log = json.loads(output)
+        json_log = json.loads(output_stream.getvalue())
     except ValueError:
         assert False, "Invalid json generated."
     else:
-        assert len(json_log["logs"]) == 3
-        assert json_log["logs"][0]["message"] == 1
-        assert json_log["logs"][1]["message"] == 2
-        assert json_log["logs"][2]["message"] == 3
+        assert len(json_log) == 3
+        assert json_log[0]["message"] == 1
+        assert json_log[1]["message"] == 2
+        assert json_log[2]["message"] == 3
 
 
 def test_logfile_log_entries_on_same_line_with_comma_separation(
-    log_comma_separation_same_line
+    log_comma_separation_same_line, output_stream
 ):
     """Test with single log."""
-    output = ""
-    with open(log_comma_separation_same_line.name) as file:
-        for line in wrap_json_output(file):
-            output += line
+    with open(log_comma_separation_same_line.name, "rb") as file:
+        write_json_output(file, output_stream)
 
     try:
-        json_log = json.loads(output)
+        json_log = json.loads(output_stream.getvalue())
     except ValueError:
         assert False, "Invalid json generated."
     else:
-        assert len(json_log["logs"]) == 3
-        assert json_log["logs"][0]["message"] == 1
-        assert json_log["logs"][1]["message"] == 2
-        assert json_log["logs"][2]["message"] == 3
+        assert len(json_log) == 3
+        assert json_log[0]["message"] == 1
+        assert json_log[1]["message"] == 2
+        assert json_log[2]["message"] == 3
