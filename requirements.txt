@@ -8,7 +8,7 @@ ipython==7.7.0
 isort==4.3.21
 jupyter==1.0.0
 jupyterlab==1.0.4
-kaggle==1.5.4
+kaggle==1.5.5
 mypy==0.720
 pycodestyle==2.5.0
 pydocstyle==4.0.0
