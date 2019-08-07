@@ -11,14 +11,15 @@ ifndef PYTHON
     $(error Python3 is not available on your system, please install python3.6)
 endif
 
-NPM := $(shell command -v npm 2> /dev/null)
-ifndef NPM
-    $(error npm is not available on your system, please install npm)
+WGET := $(shell command -v wget 2> /dev/null)
+ifndef WGET
+    $(error Wget is not installed on your system, please install wget.)
 endif
 
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PROFILE = default
 PROJECT_NAME = zippy
+PROJECT_VERSION=v1.0.0-alpha
 
 TOPIC=
 
@@ -45,10 +46,8 @@ NO_COLOR=\x1b[m
 #################################################################################
 
 .PHONY: data
-## Data related operations
+## List available datasets
 data:
-	@echo -e "${COLOR}make data:push FILENAME=<DATA_FILENAME>${NO_COLOR}\tTo push specific dataset to Azure."
-	@echo -e "${COLOR}make data:pull FILENAME=<DATA_FILENAME>${NO_COLOR}\tTo pull specific dataset from Azure."
 	@echo -e "${COLOR}make <DATA_FILENAME>${NO_COLOR}\t\t\tTo build dataset locally."
 	@echo -e "\nFollowing files are available:"
 	@echo -e "$$(egrep '^(data/.+)\:' ${MAKEFILE_LIST} | sed -e 's/:.*\s*/:/' -e 's/^\(.\+\):\(.*\)/\t\${COLOR}\1\${NO_COLOR}\2/')"
@@ -75,33 +74,38 @@ endif
 data/raw/emails.csv:
 	kaggle datasets download -d wcukierski/enron-email-dataset --path $(shell dirname $@) --unzip
 
+data/raw/enron-dataset-clean-v1.pkl:
+	@echo "Not implemented yet"
+
+data/raw/emails-processed.pkl:
+	@echo "Not implemented yet"
+
+data/raw/bc3:
+	@echo "Not implemented yet"
 
 .PHONY: models
 ## Models related operations
 models:
-	@echo -e "${COLOR}make models:push FILENAME=<MODEL_FILENAME>${NO_COLOR}\tTo push specific model to Azure."
-	@echo -e "${COLOR}make models:pull FILENAME=<MODEL_FILENAME>${NO_COLOR}\tTo pull specific model from Azure."
-	@echo -e "${COLOR}make <MODEL_FILENAME>${NO_COLOR}\t\t\tTo train model locally."
-	@echo -e "\nFollowing files are available:"
-	@echo -e "$$(egrep '^(output/models/.+)\:' ${MAKEFILE_LIST} | sed -e 's/:.*\s*/:/' -e 's/^\(.\+\):\(.*\)/\t\\x1b[36m\1\\x1b[m\2/')"
+	@echo -e "${COLOR}make models:push FILENAME=<MODEL_FILENAME>${NO_COLOR} To push specific model to Azure (Server down at the moment)."
+	@echo -e "${COLOR}make models:pull ${NO_COLOR}\tTo pull all the models from Github release."
 
 .PHONY: models\:push
 models\:push:
-ifndef FILENAME
-	$(info Missing FILENAME argument)
-	$(error Usage: "make models:push FILENAME=path/to/the/file")
+	@echo "Pushing model does not work, as the server is currently down."
+	@echo "Please upload models in github releases instead."
+ifdef FILENAME
+	$(PYTHON) scripts/utils.py push ${FILENAME}
 else
-	$(PYTHON) scripts/utils.py push $(FILENAME)
+	@echo "If you want to, you can try using the following command:"
+	@echo -e "\t${COLOR}$(PYTHON) scripts/utils.py push <FILENAME_PATH_TO_PUSH>${NO_COLOR}"
 endif
 
 .PHONY: models\:pull
 models\:pull:
-ifndef FILENAME
-	$(info Missing FILENAME argument)
-	$(error Usage: "make models:pull FILENAME=path/to/the/file")
-else
-	$(PYTHON) scripts/utils.py pull $(FILENAME)
-endif
+	$(WGET) https://github.com/IOEPAS/zippy/releases/download/${PROJECT_VERSION}/models.tar.xz -O ${MODELS_DIR}/models.tar.xz
+	@test -f  ${MODELS_DIR}/models.tar.xz || { echo "Could not find the downloaded file. Exiting..."; exit 1; }
+	tar -xvf ${MODELS_DIR}/models.tar.xz -C ${MODELS_DIR}
+	rm -f ${MODELS_DIR}/models.tar.xz
 
 # model pipelines
 
