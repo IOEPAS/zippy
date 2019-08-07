@@ -20,13 +20,13 @@ Sphinx==2.1.2
 watermark==1.8.2
 
 tensorflow==2.0.0-beta1
-pandas
-numpy
-nltk
-sklearn
-matplotlib
-seaborn
-wordcloud
+pandas==0.24.2
+numpy==1.16.3
+nltk==3.4.1
+scikit-learn==0.21.0
+matplotlib==3.1.1
+seaborn==0.9.0
+wordcloud==1.5.0
 
 ## client/updatechecker
 schedule==0.6.0
