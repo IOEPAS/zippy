@@ -19,9 +19,11 @@ SIMPLE_MODEL = pathlib.Path(__file__).parents[3] / "output/models/simplerank"
 INTENT_MODEL = (
     pathlib.Path(__file__).parents[3] / "output/models/intent/intent-bi-lstm-highest.h5"
 )
-
-with open(INTENT_MODEL.parents[0] / "tokenizer.pickle", "rb") as handle:
-    TOKENIZER = pickle.load(handle)
+try:
+    with open(INTENT_MODEL.parents[0] / "tokenizer.pickle", "rb") as handle:
+        TOKENIZER = pickle.load(handle)
+except FileNotFoundError:
+    raise SystemExit("Pre-trained tokenizer not found. Please check models directory.")
 
 try:
     VEC = CountVectorizer(stop_words=nltk.corpus.stopwords.words("english"))
@@ -227,7 +229,7 @@ def rank_message(message):
 
     intent_model = keras.models.load_model(INTENT_MODEL)
 
-    content: str = msg["content"][0]
+    # content: str = msg["content"][0]
 
     # parts = (*content.splitlines(), msg["Subject"][0])
     # intent_score = intent_model.predict(
