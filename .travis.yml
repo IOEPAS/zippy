@@ -10,6 +10,7 @@ env:
   global: COVERAGE=true COV_ARGS="--cov-report xml:coverage.xml"
 before_script:
   - make package
+  - cp env.example.yml .env.yml
 script:
   - make lint
   - make docs
