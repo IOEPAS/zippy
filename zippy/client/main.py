@@ -21,6 +21,7 @@ from zippy.utils.config import get_config
 from zippy.utils.log_handler import get_logger
 
 
+# pylint: disable=no-member
 class EmailAuthUser(NamedTuple):
     """Data class for email user."""
 
