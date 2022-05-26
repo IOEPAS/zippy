@@ -18,7 +18,7 @@ pytest-cov==2.7.1
 pyyaml>=4.2b1
 Sphinx==2.1.2
 watermark==1.8.2
-tensorflow==2.5.1
+tensorflow==2.7.2
 
 pandas
 numpy
